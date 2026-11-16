@@ -66,11 +66,13 @@
       var h1 = $('h1', hero);
       var lines = splitLines(h1);
       var tl = gsap.timeline({ defaults: { ease: EASE } });
+      var greeting = $('.greeting', hero);
       tl.from($('p', hero), { autoAlpha: 0, x: -24, duration: 0.7 }, 0.2)
-        .from(lines, { yPercent: 110, duration: 1.1, stagger: 0.12, ease: 'power4.out' }, 0.3)
-        .from(h1.nextElementSibling, { autoAlpha: 0, y: 24, duration: 0.8 }, 0.75)
-        .from(h1.nextElementSibling.nextElementSibling, { autoAlpha: 0, y: 24, duration: 0.8 }, 0.9)
-        .from($$(':scope > div:last-child > span', hero), { autoAlpha: 0, y: 16, duration: 0.6, stagger: 0.08 }, 1.05);
+        .from(greeting, { autoAlpha: 0, y: 24, duration: 0.8 }, 0.3)
+        .from(lines, { yPercent: 110, duration: 1.1, stagger: 0.12, ease: 'power4.out' }, 0.5)
+        .from(h1.nextElementSibling, { autoAlpha: 0, y: 24, duration: 0.8 }, 0.95)
+        .from(h1.nextElementSibling.nextElementSibling, { autoAlpha: 0, y: 24, duration: 0.8 }, 1.1)
+        .from($$(':scope > div:last-child > span', hero), { autoAlpha: 0, y: 16, duration: 0.6, stagger: 0.08 }, 1.25);
     }
 
     // ---------- Section headings (eyebrow + h2) ----------
@@ -89,15 +91,15 @@
     // ---------- About ----------
     var about = $('#about');
     if (about) {
-      var photo = $('[role="img"]', about);
+      var photo = $('.portrait', about);
       if (photo) {
         gsap.from(photo, {
           autoAlpha: 0, x: side(-80).x, y: side(-80).y, duration: 1.1, ease: EASE,
           scrollTrigger: { trigger: photo, start: 'clamp(top 85%)', once: true }
         });
-        var mono = photo.firstElementChild;
-        if (mono) gsap.from(mono, {
-          scale: 0.8, autoAlpha: 0, duration: 1.2, delay: 0.25, ease: EASE,
+        var img = photo.querySelector('img');
+        if (img) gsap.from(img, {
+          scale: 1.18, duration: 1.6, ease: 'power2.out',
           scrollTrigger: { trigger: photo, start: 'clamp(top 85%)', once: true }
         });
       }
