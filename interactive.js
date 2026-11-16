@@ -1,4 +1,4 @@
-/* Interactive extras for kentsc-portfolio: agent demo, 3D card tilt, magnetic buttons, custom cursor. */
+/* Interactive extras for kentsc-portfolio: agent demo, 3D card tilt, magnetic buttons. */
 (function () {
   var hasGsap = !!window.gsap;
   var reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -171,51 +171,5 @@
     });
   }
 
-  /* ------------------------------------------------------------------ */
-  /* 3. Custom cursor (desktop with a mouse only)                        */
-  /* ------------------------------------------------------------------ */
-  function setupCursor() {
-    if (!finePointer.matches) return;
-    var dotEl = document.createElement('div');
-    var ring = document.createElement('div');
-    dotEl.className = 'cursor-dot'; ring.className = 'cursor-ring';
-    dotEl.setAttribute('aria-hidden', 'true'); ring.setAttribute('aria-hidden', 'true');
-    document.body.appendChild(ring); document.body.appendChild(dotEl);
-    document.documentElement.classList.add('has-cursor');
-
-    var smooth = hasGsap && !reduceMQ.matches;
-    var dx, dy, rx, ry;
-    if (smooth) {
-      dx = gsap.quickTo(dotEl, 'x', { duration: 0.08, ease: 'power3' });
-      dy = gsap.quickTo(dotEl, 'y', { duration: 0.08, ease: 'power3' });
-      rx = gsap.quickTo(ring, 'x', { duration: 0.35, ease: 'power3' });
-      ry = gsap.quickTo(ring, 'y', { duration: 0.35, ease: 'power3' });
-    }
-    var shown = false;
-    window.addEventListener('pointermove', function (e) {
-      if (e.pointerType && e.pointerType !== 'mouse') return;
-      if (!shown) { document.documentElement.classList.add('cursor-visible'); shown = true; }
-      if (smooth) { dx(e.clientX); dy(e.clientY); rx(e.clientX); ry(e.clientY); }
-      else {
-        dotEl.style.transform = ring.style.transform = 'translate(' + e.clientX + 'px,' + e.clientY + 'px)';
-      }
-    }, { passive: true });
-    document.addEventListener('pointerleave', function () { document.documentElement.classList.remove('cursor-visible'); shown = false; });
-    window.addEventListener('blur', function () { document.documentElement.classList.remove('cursor-visible'); shown = false; });
-
-    var hoverSel = 'a, button, [role="button"], .card';
-    document.addEventListener('pointerover', function (e) {
-      if (e.target.closest && e.target.closest(hoverSel)) document.documentElement.classList.add('cursor-hover');
-    });
-    document.addEventListener('pointerout', function (e) {
-      if (e.target.closest && e.target.closest(hoverSel) && !(e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest(hoverSel))) {
-        document.documentElement.classList.remove('cursor-hover');
-      }
-    });
-    document.addEventListener('pointerdown', function () { document.documentElement.classList.add('cursor-down'); });
-    document.addEventListener('pointerup', function () { document.documentElement.classList.remove('cursor-down'); });
-  }
-
   setupTilt();
-  setupCursor();
 })();
