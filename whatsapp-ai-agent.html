@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Case study: WhatsApp AI agent for a Shopify store — Kent</title>
+<meta name="description" content="How I built an n8n AI agent that answers customer questions and helps with orders on WhatsApp, connected to Shopify data.">
+<meta property="og:title" content="Case study: WhatsApp AI agent for a Shopify store — Kent">
+<meta property="og:description" content="How I built an n8n AI agent that answers customer questions and helps with orders on WhatsApp, connected to Shopify data.">
+<meta name="theme-color" content="#0E0E0E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230E0E0E'/%3E%3Ctext x='14' y='46' font-family='Georgia,serif' font-size='40' fill='%23F7F5F0'%3EK%3C/text%3E%3Ccircle cx='48' cy='44' r='4' fill='%23C9A54C'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Instrument+Serif:ital@0;1&amp;display=swap">
+<style>
+[hidden]{display:none !important}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:#0E0E0E;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+a:hover{color:#C9A54C}
+p{text-wrap:pretty}
+.lnk{transition:color .2s ease}
+.lnk:hover{color:#C9A54C}
+.on-light .lnk:hover{color:#7E631B}
+.btn-ghost{transition:border-color .2s ease,color .2s ease}
+.btn-ghost:hover{border-color:#C9A54C !important;color:#F7F5F0}
+.next .arrow{transition:transform .25s ease}
+.next:hover .arrow{transform:translateX(6px)}
+a:focus-visible,button:focus-visible{outline:2px solid #C9A54C;outline-offset:4px}
+.on-light a:focus-visible{outline-color:#7E631B}
+@media (max-width:820px){.hide-sm{display:none !important}}
+@media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
+</style>
+</head>
+<body>
+<div id="top" style="font-family: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif; color: #F7F5F0; background: #0E0E0E; min-width: 0">
+
+<!-- NAV -->
+<header style="position: sticky; top: 0; z-index: 20; background: #0E0E0E; border-bottom: 1px solid #1F1F1F">
+<nav aria-label="Main" style="max-width: 1360px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 80px); height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 24px">
+<a href="index.html" class="lnk" style="display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px; color: #F7F5F0">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"></path></svg>
+All work
+</a>
+<a href="index.html" class="lnk" style="font-family: 'Instrument Serif', Georgia, serif; font-size: 30px; line-height: 1; color: #F7F5F0">Kent<span style="color: #C9A54C">.</span></a>
+<a href="index.html" class="btn-ghost hide-sm" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 20px; border: 1px solid #3A3A3A; border-radius: 2px; font-size: 14px; font-weight: 500; color: #F7F5F0">Get in touch</a>
+</nav>
+</header>
+
+<!-- HERO (dark) -->
+<section aria-labelledby="cs-title" style="max-width: 1360px; margin: 0 auto; padding: clamp(64px, 9vw, 128px) clamp(20px, 5vw, 80px) clamp(48px, 6vw, 80px); box-sizing: border-box; display: flex; flex-direction: column; gap: 32px">
+<p style="margin: 0; display: flex; align-items: center; gap: 14px; font-size: 13px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #C9A54C"><span style="display: inline-block; width: 32px; height: 1px; background: #C9A54C"></span>Case study — AI agent</p>
+<h1 id="cs-title" style="margin: 0; max-width: 16ch; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: clamp(44px, 6.4vw, 96px); line-height: 1.08; letter-spacing: 0; word-spacing: 0.06em; text-wrap: balance">WhatsApp <em style="font-style: italic; color: #C9A54C">AI agent</em> for a Shopify store</h1>
+<p style="margin: 0; max-width: 56ch; font-size: clamp(17px, 1.4vw, 20px); line-height: 1.6; color: #9A968C">An AI agent that answers customer questions and helps with orders on WhatsApp, connected to the store’s Shopify data. Built in n8n and tested in the cloud.</p>
+<dl style="margin: 24px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 28px 32px; padding-top: 28px; border-top: 1px solid #262626">
+<div style="display: flex; flex-direction: column; gap: 8px"><dt style="font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: #9A968C">Role</dt><dd style="margin: 0; font-size: 17px">Solo builder</dd></div>
+<div style="display: flex; flex-direction: column; gap: 8px"><dt style="font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: #9A968C">Tools</dt><dd style="margin: 0; font-size: 17px">n8n · WhatsApp Cloud API · Shopify</dd></div>
+<div style="display: flex; flex-direction: column; gap: 8px"><dt style="font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: #9A968C">Year</dt><dd style="margin: 0; font-size: 17px">2026</dd></div>
+<div style="display: flex; flex-direction: column; gap: 8px"><dt style="font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: #9A968C">Status</dt><dd style="margin: 0; font-size: 17px">Demo</dd></div>
+</dl>
+</section>
+
+<!-- HERO VISUAL -->
+<div style="max-width: 1360px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 80px) clamp(80px, 10vw, 128px); box-sizing: border-box">
+<div role="img" aria-label="Diagram of the agent flow: WhatsApp message, AI agent, Shopify lookup, reply" style="height: clamp(260px, 32vw, 460px); background: #121212; border: 1px solid #262626; padding: 0 clamp(16px, 4vw, 64px); display: flex; align-items: center; justify-content: center">
+<div aria-hidden="true" style="display: flex; align-items: center; width: 100%; max-width: 860px">
+
+
+<div style="flex: 0 0 clamp(52px, 9vw, 128px); height: clamp(52px, 5vw, 72px); box-sizing: border-box; border: 1px solid #3A3A3A; background: #1C1C1C; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: clamp(10px, 1vw, 13px); color: #9A968C">WhatsApp</div>
+
+
+<div style="flex: 1 1 12px; height: 1px; background: #C9A54C"></div>
+
+<div style="flex: 0 0 clamp(52px, 9vw, 128px); height: clamp(52px, 5vw, 72px); box-sizing: border-box; border: 1px solid #3A3A3A; background: #1C1C1C; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: clamp(10px, 1vw, 13px); color: #9A968C">AI Agent</div>
+
+
+<div style="flex: 1 1 12px; height: 1px; background: #C9A54C"></div>
+
+<div style="flex: 0 0 clamp(52px, 9vw, 128px); height: clamp(52px, 5vw, 72px); box-sizing: border-box; border: 1px solid #3A3A3A; background: #1C1C1C; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: clamp(10px, 1vw, 13px); color: #9A968C">Shopify</div>
+
+
+<div style="flex: 1 1 12px; height: 1px; background: #C9A54C"></div>
+
+<div style="flex: 0 0 clamp(52px, 9vw, 128px); height: clamp(52px, 5vw, 72px); box-sizing: border-box; border: 1px solid #C9A54C; background: #1C1C1C; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: clamp(10px, 1vw, 13px); color: #C9A54C">Reply</div>
+
+</div>
+</div>
+</div>
+
+<!-- STORY (light) -->
+<section class="on-light" aria-label="Project story" style="background: #F7F5F0; color: #0E0E0E">
+<div style="max-width: 1360px; margin: 0 auto; padding: clamp(80px, 10vw, 144px) clamp(20px, 5vw, 80px); box-sizing: border-box; display: flex; flex-direction: column; gap: clamp(56px, 7vw, 96px)">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: clamp(40px, 5vw, 64px)">
+
+<div style="display: flex; flex-direction: column; gap: 16px; padding-top: 24px; border-top: 1px solid #0E0E0E">
+<p style="margin: 0; font-size: 13px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #7E631B">01 — The problem</p>
+<h2 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: clamp(30px, 2.8vw, 40px); line-height: 1.1">The challenge</h2>
+<p style="margin: 0; font-size: 17px; line-height: 1.7; color: #5C5A55">A Shopify store gets a steady stream of WhatsApp messages about products and orders. Answering each one by hand takes time, and replies slow down when the team is busy.</p>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 16px; padding-top: 24px; border-top: 1px solid #0E0E0E">
+<p style="margin: 0; font-size: 13px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #7E631B">02 — The approach</p>
+<h2 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: clamp(30px, 2.8vw, 40px); line-height: 1.1">How I built it</h2>
+<p style="margin: 0; font-size: 17px; line-height: 1.7; color: #5C5A55">Each incoming message arrives through the WhatsApp Cloud API and starts an n8n workflow. An AI agent reads the question, looks up products and orders in Shopify, and writes a reply that goes back to the customer in the same chat.</p>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 16px; padding-top: 24px; border-top: 1px solid #0E0E0E">
+<p style="margin: 0; font-size: 13px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #7E631B">03 — The result</p>
+<h2 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: clamp(30px, 2.8vw, 40px); line-height: 1.1">What it does</h2>
+<p style="margin: 0; font-size: 17px; line-height: 1.7; color: #5C5A55">Customers get an answer based on the store’s live data without waiting for someone to be online, and the team spends less time on repetitive questions.</p>
+</div>
+
+</div>
+</div>
+</section>
+
+<!-- NEXT (dark) -->
+<section aria-label="Next project" style="background: #0E0E0E">
+<div style="max-width: 1360px; margin: 0 auto; padding: clamp(80px, 10vw, 128px) clamp(20px, 5vw, 80px) clamp(48px, 6vw, 72px); box-sizing: border-box; display: flex; flex-direction: column; gap: 64px">
+<a href="index.html" class="next" style="display: flex; flex-direction: column; gap: 16px; color: #F7F5F0">
+<span style="font-size: 13px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #C9A54C">Next project</span>
+<span style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; font-family: 'Instrument Serif', Georgia, serif; font-size: clamp(40px, 5.6vw, 84px); line-height: 1.05; letter-spacing: 0; word-spacing: 0.04em">AI email CRM
+<svg class="arrow" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#C9A54C" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+</span>
+</a>
+<footer style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding-top: 28px; border-top: 1px solid #262626; font-size: 14px; color: #9A968C">
+<span>© 2026 Kent</span>
+<a href="#top" class="lnk" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: #F7F5F0">Back to top
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"></path></svg>
+</a>
+</footer>
+</div>
+</section>
+
+</div>
+</body>
+</html>
