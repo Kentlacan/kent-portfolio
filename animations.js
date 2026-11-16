@@ -9,6 +9,9 @@
   var $ = function (sel, ctx) { return (ctx || document).querySelector(sel); };
   var $$ = function (sel, ctx) { return Array.prototype.slice.call((ctx || document).querySelectorAll(sel)); };
   var EASE = 'power3.out';
+  // On narrow screens slide vertically instead of sideways, so nothing sits off-screen.
+  var NARROW = window.matchMedia('(max-width: 820px)').matches;
+  function side(v) { return NARROW ? { x: 0, y: Math.abs(v) * 0.6 } : { x: v, y: 0 }; }
 
   // Wrap each <br>-separated line of a heading in a mask so it can slide up.
   function splitLines(el) {
@@ -80,7 +83,7 @@
     // Short intro paragraph beside a section heading (Work, Process)
     $$('#work h2, #process h2').forEach(function (h2) {
       var intro = h2.parentElement && h2.parentElement.nextElementSibling;
-      if (intro && intro.tagName === 'P') flyIn(intro, { x: 40, y: 0 }, h2);
+      if (intro && intro.tagName === 'P') flyIn(intro, side(40), h2);
     });
 
     // ---------- About ----------
@@ -89,7 +92,7 @@
       var photo = $('[role="img"]', about);
       if (photo) {
         gsap.from(photo, {
-          autoAlpha: 0, x: -80, duration: 1.1, ease: EASE,
+          autoAlpha: 0, x: side(-80).x, y: side(-80).y, duration: 1.1, ease: EASE,
           scrollTrigger: { trigger: photo, start: 'clamp(top 85%)', once: true }
         });
         var mono = photo.firstElementChild;
@@ -100,7 +103,7 @@
       }
       var aboutH2 = $('h2', about);
       var panel = aboutH2 && aboutH2.nextElementSibling;
-      flyIn(panel, { x: 80, y: 0, duration: 1 }, panel);
+      flyIn(panel, Object.assign(side(80), { duration: 1 }), panel);
       flyIn(panel && panel.nextElementSibling, { y: 30 }, panel && panel.nextElementSibling);
       var chips = panel && panel.nextElementSibling ? $$('li', panel.nextElementSibling) : [];
       flyIn(chips, { y: 16, duration: 0.5, stagger: 0.06 }, chips[0]);
@@ -115,11 +118,14 @@
       buildFlow($('[aria-hidden="true"]', card), card, 0.35 + (i % 2) * 0.12);
     });
 
+    // ---------- Agent demo panel ----------
+    flyIn($('#agent-demo'), { y: 60, duration: 1 });
+
     // ---------- Process steps ----------
     var steps = $$('#process ol > li');
     if (steps.length) {
       gsap.from(steps, {
-        autoAlpha: 0, x: -40, duration: 0.8, ease: EASE, stagger: 0.15,
+        autoAlpha: 0, x: side(-40).x, y: side(-40).y, duration: 0.8, ease: EASE, stagger: 0.15,
         scrollTrigger: { trigger: steps[0], start: 'clamp(top 85%)', once: true }
       });
     }
@@ -157,7 +163,7 @@
         });
       }
       var next = $('a.next');
-      if (next) flyIn(next, { x: -60, y: 0, duration: 1 }, next);
+      if (next) flyIn(next, Object.assign(side(-60), { duration: 1 }), next);
     }
 
     // Recalculate trigger positions once web fonts change the layout.
