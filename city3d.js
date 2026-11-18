@@ -41,7 +41,10 @@
     leaf2: lin('#4A683D'),
     leaf3: lin('#7A9455'),
     grass: lin('#3C5232'),
-    solar: lin('#2C3036')
+    solar: lin('#2C3036'),
+    floor: lin('#1B1A18'),
+    belt: lin('#262522'),
+    screen: lin('#FFF1CF')
   };
 
   /* ---------- tiny math ---------- */
@@ -150,6 +153,63 @@
       }
     }
     return g;
+  }
+
+  function sphere() {
+    var t = (1 + Math.sqrt(5)) / 2, g = new Geo(), c = [0, 0.5, 0];
+    var v = [[-1, t, 0], [1, t, 0], [-1, -t, 0], [1, -t, 0], [0, -1, t], [0, 1, t], [0, -1, -t], [0, 1, -t], [t, 0, -1], [t, 0, 1], [-t, 0, -1], [-t, 0, 1]].map(norm);
+    var f = [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
+      [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]];
+    function mid(a, b) { return norm([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2]); }
+    function P(q) { return [q[0] * 0.5, q[1] * 0.5 + 0.5, q[2] * 0.5]; }
+    f.forEach(function (i) {
+      var a = v[i[0]], b = v[i[1]], d = v[i[2]], ab = mid(a, b), bd = mid(b, d), da = mid(d, a);
+      [[a, ab, da], [ab, b, bd], [da, bd, d], [ab, bd, da]].forEach(function (q) {
+        var A = P(q[0]), B = P(q[1]), D = P(q[2]);
+        g.tri(A, B, D, outward(A, B, D, c));
+      });
+    });
+    return g;
+  }
+  // folded paper plane, nose pointing +z, centred on the origin
+  function paperPlane() {
+    var g = new Geo(), N = [0, 0.04, 0.5], BL = [-0.42, 0.1, -0.5], BR = [0.42, 0.1, -0.5], BC = [0, 0.02, -0.5], K = [0, -0.16, -0.5];
+    g.tri(N, BL, BC, norm([0.04, 1, 0.1]));
+    g.tri(N, BC, BR, norm([-0.04, 1, 0.1]));
+    g.tri(N, BC, K, [1, 0, 0]);
+    return g;
+  }
+  // check mark standing in the XY plane, facing +z
+  function checkMark() {
+    var g = new Geo();
+    function slab(x0, y0, x1, y1, w, d) {
+      var ux = x1 - x0, uy = y1 - y0, l = Math.hypot(ux, uy); ux /= l; uy /= l;
+      var nx = -uy * w / 2, ny = ux * w / 2, z0 = -d / 2, z1 = d / 2;
+      var a = [x0 + nx, y0 + ny], b = [x1 + nx, y1 + ny], c = [x1 - nx, y1 - ny], e = [x0 - nx, y0 - ny];
+      function q(p, z) { return [p[0], p[1], z]; }
+      g.quad(q(a, z1), q(e, z1), q(c, z1), q(b, z1), [0, 0, 1]);
+      g.quad(q(a, z0), q(b, z0), q(c, z0), q(e, z0), [0, 0, -1]);
+      g.quad(q(a, z0), q(a, z1), q(b, z1), q(b, z0), norm([-uy, ux, 0]));
+      g.quad(q(e, z0), q(c, z0), q(c, z1), q(e, z1), norm([uy, -ux, 0]));
+      g.quad(q(b, z0), q(b, z1), q(c, z1), q(c, z0), [ux, uy, 0]);
+      g.quad(q(a, z0), q(e, z0), q(e, z1), q(a, z1), [-ux, -uy, 0]);
+    }
+    slab(-0.42, 0.02, -0.12, -0.3, 0.16, 0.1);
+    slab(-0.17, -0.3, 0.46, 0.42, 0.16, 0.1);
+    return g;
+  }
+  // rotate a local offset by tiltX then yaw (same order as the shader)
+  function xf(yaw, tilt, lx, ly, lz) {
+    var ct = Math.cos(tilt), st = Math.sin(tilt), y1 = ct * ly - st * lz, z1 = st * ly + ct * lz;
+    var c = Math.cos(yaw), s = Math.sin(yaw);
+    return [c * lx + s * z1, y1, -s * lx + c * z1];
+  }
+  function put(B, o, yaw, tilt, l, sc, col, em, ty, seed, rise, ex, yawExtra) {
+    var p = xf(yaw, tilt, l[0], l[1], l[2]);
+    B.add(o[0] + p[0], o[1] + p[1], o[2] + p[2], yaw + (yawExtra || 0), sc[0], sc[1], sc[2], tilt, col, em || 0, ty || 0, seed || 0, rise, ex);
+  }
+  function orient(v) {
+    return [Math.atan2(v[0], v[2]), -Math.atan2(v[1], Math.hypot(v[0], v[2]))];
   }
 
   /* ---------- shaders ---------- */
@@ -300,7 +360,7 @@
   /* ---------- scene presets ---------- */
   var PRESETS = {
     hero: { seed: 11, n: 7, az: 0.66, el: 0.56, fov: 26, fit: 29, offX: 0.6, offY: -0.12, mBottom: 10, win: 1.0, drones: 6 },
-    contact: { seed: 29, n: 7, az: 2.2, el: 0.42, fov: 26, fit: 27, offX: 0.54, offY: 0.02, mBottom: 175, win: 1.35, drones: 8 },
+    contact: { kind: 'hub', seed: 29, az: 0.4, el: 0.52, fov: 26, fit: 8.5, fitW: 19.6, offX: 0.46, offY: 0.04, ty: 1.6, span: 22, mLift: 0.42, mBottom: 175, win: 1.0 },
     case: { seed: 53, n: 7, az: -0.9, el: 0.6, fov: 26, fit: 29, offX: 0.6, offY: 0.04, mBottom: 10, win: 1.1, drones: 5 }
   };
 
@@ -325,7 +385,10 @@
       cyl: prism(16, 0),
       cone: pyramid(8, Math.PI / 8),
       leaf: ico(),
-      ring: dashedRing(5, 0.62)
+      ring: dashedRing(5, 0.62),
+      sph: sphere(),
+      plane: paperPlane(),
+      check: checkMark()
     };
     this.setupShadow();
     this.build();
@@ -367,9 +430,22 @@
       cyl: new Batch(gl, G.cyl, 120, false),
       cone: new Batch(gl, G.cone, 1200, false),
       leaf: new Batch(gl, G.leaf, 2000, false),
-      ring: new Batch(gl, G.ring, 40, false)
+      ring: new Batch(gl, G.ring, 40, false),
+      sph: new Batch(gl, G.sph, 60, false)
     };
-    this.dyn = new Batch(gl, G.box, 900, true);
+    this.D = {
+      box: new Batch(gl, G.box, 1400, true),
+      cyl: new Batch(gl, G.cyl, 120, true),
+      sph: new Batch(gl, G.sph, 80, true),
+      plane: new Batch(gl, G.plane, 24, true),
+      check: new Batch(gl, G.check, 8, true)
+    };
+    this.dyn = this.D.box;
+    if (cfg.kind === 'hub') {
+      this.buildHub(R);
+      for (var hk in S) S[hk].upload();
+      return;
+    }
 
     var BLK = 7, ROAD = 2, PITCH = BLK + ROAD, N = cfg.n, half = (N - 1) / 2;
     var E = (half + 1) * PITCH + 6;              // road length (beyond the fade)
@@ -683,6 +759,250 @@
     });
   };
 
+  /* ---------- Message Automation Hub (contact section) ----------
+   * inbox icons -> conveyor through Trigger / Filter / Action nodes ->
+   * AI core -> paper-plane replies -> laptop & phone light up with a check.
+   */
+  var HUB = { INT: 1.5, DROP: 0.7, BELT: 3.6, LIFT: 0.8, PROC: 0.5, FLY: 2.2, SHOW: 1.3 };
+  HUB.LIFE = HUB.DROP + HUB.BELT + HUB.LIFT + HUB.PROC + HUB.FLY + HUB.SHOW;
+
+  City.prototype.buildHub = function (R) {
+    var S = this.S, Y0 = 0.4;
+    this.rad = 19; this.flow = -1.4;
+    var H = this.hub = {
+      Y0: Y0, inbox: -7.0, zs: [-2.2, 0, 2.2], bs: -5.4, be: -0.4, beltY: Y0 + 0.53,
+      gates: [-4.3, -2.9, -1.5], core: [2.3, Y0 + 2.75, 0],
+      dev: [{ x: 6.3, z: 1.6, yaw: -0.38, kind: 'laptop' }, { x: 6.4, z: -1.8, yaw: -0.55, kind: 'phone' }]
+    };
+    function dl(x) { return 0.1 + (x + 9) * 0.05; }
+    var o0 = [0, 0, 0];
+
+    // ground, platform, glowing rim, subtle grid
+    S.box.add(0, -0.2, 0, 0, 300, 0.2, 300, 0, C.floor, 0, 0, 0);
+    S.box.add(0, 0, 0, 0, 17.4, Y0, 9.2, 0, C.dark1, 0, 0, 0, 0.05);
+    S.box.add(0, Y0 - 0.07, 0, 0, 17.52, 0.05, 9.32, 0, C.yellow, 0.7, 3, 0, 0.05);
+    for (var gx = -7.5; gx <= 7.51; gx += 1.5) S.box.add(gx, Y0, 0, 0, 0.025, 0.006, 9.0, 0, C.dark2, 0, 0, 0, 0.05);
+    for (var gz = -4.5; gz <= 4.51; gz += 1.5) S.box.add(0, Y0, gz, 0, 17.0, 0.006, 0.025, 0, C.dark2, 0, 0, 0, 0.05);
+
+    // inbox pedestals + cables to the belt
+    H.zs.forEach(function (z) {
+      var d = dl(H.inbox);
+      S.cyl.add(H.inbox, Y0, z, 0, 1.5, 0.12, 1.5, 0, C.dark2, 0, 0, 0, d);
+      S.cyl.add(H.inbox, Y0 + 0.12, z, 0, 1.2, 0.7, 1.2, 0, C.dark3, 0, 0, 0, d);
+      S.cyl.add(H.inbox, Y0 + 0.74, z, 0, 1.27, 0.05, 1.27, 0, C.yellow, 1.0, 3, 0, d);
+      var a = [H.inbox + 0.65, z], b = [H.bs - 0.35, 0], v = [b[0] - a[0], 0, b[1] - a[1]], L = Math.hypot(v[0], v[2]);
+      S.box.add((a[0] + b[0]) / 2, Y0, (a[1] + b[1]) / 2, Math.atan2(v[0], v[2]), 0.07, 0.015, L, 0, C.yellow, 0.35, 3, 0, d);
+    });
+
+    // conveyor
+    var bl = H.be - H.bs + 0.8, bc = (H.bs + H.be) / 2, d0 = dl(-4);
+    S.box.add(bc, Y0, 0, 0, bl, 0.45, 1.3, 0, C.dark2, 0, 0, 0, d0);
+    S.box.add(bc, Y0 + 0.45, 0, 0, bl - 0.1, 0.08, 1.0, 0, C.belt, 0, 0, 0, d0);
+    S.box.add(bc, Y0 + 0.45, 0.6, 0, bl, 0.14, 0.09, 0, C.light2, 0, 0, 0, d0);
+    S.box.add(bc, Y0 + 0.45, -0.6, 0, bl, 0.14, 0.09, 0, C.light2, 0, 0, 0, d0);
+    [H.bs - 0.35, H.be + 0.35].forEach(function (x) { S.cyl.add(x, Y0 + 0.3, -0.55, 0, 0.42, 1.1, 0.42, Math.PI / 2, C.dark3, 0, 0, 0, d0); });
+    for (var lx = H.bs + 0.2; lx < H.be; lx += 1.2) {           // little legs
+      S.box.add(lx, Y0, 0.66, 0, 0.12, 0.45, 0.06, 0, C.dark3, 0, 0, 0, d0);
+      S.box.add(lx, Y0, -0.66, 0, 0.12, 0.45, 0.06, 0, C.dark3, 0, 0, 0, d0);
+    }
+
+    // node gates: Trigger (spike), Filter (funnel), Action (cube)
+    H.gates.forEach(function (x, i) {
+      var d = dl(x);
+      S.box.add(x, Y0, 0.86, 0, 0.24, 1.62, 0.24, 0, C.dark1, 0, 0, 0, d);
+      S.box.add(x, Y0, -0.86, 0, 0.24, 1.62, 0.24, 0, C.dark1, 0, 0, 0, d);
+      S.box.add(x, Y0 + 1.62, 0, 0, 0.42, 0.26, 1.98, 0, C.dark2, 0, 0, 0, d);
+      S.box.add(x, Y0 + 1.88, 0, 0, 0.7, 0.1, 0.7, 0, C.dark3, 0, 0, 0, d);
+      if (i === 0) S.cone.add(x, Y0 + 1.98, 0, 0, 0.46, 0.62, 0.46, 0, C.light1, 0, 0, 0, d);
+      else if (i === 1) S.cone.add(x, Y0 + 2.6, 0.0, 0, 0.6, 0.62, 0.6, Math.PI, C.light1, 0, 0, 0, d);
+      else S.box.add(x, Y0 + 1.98, 0, Math.PI / 4, 0.42, 0.42, 0.42, 0, C.light1, 0, 0, 0, d);
+    });
+
+    // AI core pedestal + gyroscope rings + server racks
+    var c = H.core, dc = dl(c[0]);
+    S.cyl.add(c[0], Y0, c[2], 0, 3.3, 0.55, 3.3, 0, C.dark2, 0, 0, 0, dc);
+    S.cyl.add(c[0], Y0 + 0.47, c[2], 0, 3.36, 0.05, 3.36, 0, C.yellow, 1.0, 3, 0, dc);
+    S.cyl.add(c[0], Y0 + 0.55, c[2], 0, 1.7, 0.32, 1.7, 0, C.dark3, 0, 0, 0, dc);
+    S.cyl.add(c[0], Y0 + 0.87, c[2], 0, 0.9, 0.03, 0.9, 0, C.yellowSoft, 0.8, 3, 0, dc);
+    S.ring.add(c[0], c[1] - 0.06, c[2], 0, 3.0, 0.12, 3.0, 0.55, C.yellowSoft, 0.9, 5, 0, dc, 0.5);
+    S.ring.add(c[0], c[1] - 0.06, c[2], 1.0, 3.7, 0.12, 3.7, -0.8, C.yellow, 0.6, 5, 0, dc, -0.34);
+    S.ring.add(c[0], c[1] - 0.06, c[2], 2.0, 4.4, 0.1, 4.4, 1.25, C.light1, 0.3, 5, 0, dc, 0.22);
+    [[0.3, -3.5], [1.4, -3.5], [3.2, -3.5], [4.3, -3.5]].forEach(function (p, i) {
+      S.box.add(p[0], Y0, p[1], 0, 1.0, 1.6 + (i % 2) * 0.5, 0.8, 0, C.dark1, 0, 1, R(), dl(p[0]));
+      S.box.add(p[0], Y0 + 1.6 + (i % 2) * 0.5, p[1], 0, 1.04, 0.05, 0.84, 0, C.yellow, 0.6, 3, 0, dl(p[0]));
+    });
+
+    // device pedestals, laptop and phone bodies
+    H.dev.forEach(function (dv) {
+      var d = dl(dv.x), o = [dv.x, Y0, dv.z];
+      put(S.box, o, dv.yaw, 0, [0, 0, 0], [2.7, 0.32, 2.2], C.dark2, 0, 0, 0, d);
+      put(S.box, o, dv.yaw, 0, [0, 0.27, 0], [2.78, 0.04, 2.28], C.yellow, 0.6, 3, 0, d);
+      var top = [dv.x, Y0 + 0.32, dv.z];
+      if (dv.kind === 'laptop') {
+        put(S.box, top, dv.yaw, 0, [0, 0, 0.1], [1.8, 0.08, 1.2], C.light2, 0, 0, 0, d);
+        put(S.box, top, dv.yaw, 0, [0, 0.08, 0.22], [1.5, 0.012, 0.62], C.dark2, 0, 0, 0, d);
+        var h = xf(dv.yaw, 0, 0, 0.08, -0.48);
+        dv.hinge = [top[0] + h[0], top[1] + h[1], top[2] + h[2]]; dv.tilt = -0.24; dv.panel = [1.56, 1.0]; dv.body = [1.8, 1.16, 0.06];
+      } else {
+        put(S.box, top, dv.yaw, 0, [0, 0, -0.05], [0.9, 0.12, 0.7], C.dark3, 0, 0, 0, d);
+        var hp = xf(dv.yaw, 0, 0, 0.12, -0.1);
+        dv.hinge = [top[0] + hp[0], top[1] + hp[1], top[2] + hp[2]]; dv.tilt = -0.3; dv.panel = [0.56, 1.16]; dv.body = [0.68, 1.32, 0.08];
+      }
+      put(S.box, dv.hinge, dv.yaw, dv.tilt, [0, 0, -0.03], dv.body, dv.kind === 'laptop' ? C.light2 : C.dark2, 0, 0, 0, d);
+      var sc = xf(dv.yaw, dv.tilt, 0, (dv.body[1]) / 2, 0.12);
+      dv.screen = [dv.hinge[0] + sc[0], dv.hinge[1] + sc[1], dv.hinge[2] + sc[2]];
+      dv.delay = d; dv.flash = 0;
+    });
+
+    // plants on the platform corners
+    var self = this;
+    [[-7.9, 3.7], [-3.4, 3.6], [3.7, 3.7], [7.9, -3.7], [-7.9, -3.7]].forEach(function (p) {
+      var d = dl(p[0]) + 0.3;
+      S.cyl.add(p[0], Y0, p[1], 0, 0.55, 0.42, 0.55, 0, C.light2, 0, 0, 0, d);
+      S.leaf.add(p[0], Y0 + 0.36, p[1], R() * 6, 0.9, 0.95, 0.9, 0, [C.leaf1, C.leaf2, C.leaf3][Math.floor(R() * 3)], 0, 2, R(), d);
+      if (R() < 0.6) S.cone.add(p[0] + 0.1, Y0 + 0.9, p[1], 0, 0.5, 0.8, 0.5, 0, C.leaf2, 0, 2, R(), d);
+    });
+    void self; void o0;
+  };
+
+  // message shapes, lying flat (envelope / chat bubble / form)
+  City.prototype.drawMsg = function (type, o, yaw, s, rise) {
+    var D = this.D;
+    if (s <= 0.001) return;
+    if (type === 0) {
+      put(D.box, o, yaw, 0, [0, 0, 0], [0.62 * s, 0.06 * s, 0.42 * s], C.light1, 0, 0, 0, rise);
+      put(D.box, o, yaw, 0, [-0.15 * s, 0.06 * s, -0.06 * s], [0.36 * s, 0.012 * s, 0.026 * s], C.dark3, 0, 0, 0, rise, 0, 0.6);
+      put(D.box, o, yaw, 0, [0.15 * s, 0.06 * s, -0.06 * s], [0.36 * s, 0.012 * s, 0.026 * s], C.dark3, 0, 0, 0, rise, 0, -0.6);
+      put(D.box, o, yaw, 0, [0, 0.06 * s, 0.03 * s], [0.12 * s, 0.016 * s, 0.12 * s], C.yellow, 0.8, 3, 0, rise, 0, Math.PI / 4);
+    } else if (type === 1) {
+      put(D.cyl, o, yaw, 0, [0, 0, 0], [0.64 * s, 0.08 * s, 0.5 * s], C.yellow, 0.12, 0, 0, rise);
+      put(D.box, o, yaw, 0, [-0.22 * s, 0, 0.2 * s], [0.16 * s, 0.08 * s, 0.16 * s], C.yellow, 0.12, 0, 0, rise, 0, 0.7);
+      for (var k = -1; k <= 1; k++) put(D.box, o, yaw, 0, [k * 0.14 * s, 0.08 * s, 0], [0.07 * s, 0.02 * s, 0.07 * s], C.dark1, 0, 0, 0, rise);
+    } else {
+      put(D.box, o, yaw, 0, [0, 0, 0], [0.46 * s, 0.05 * s, 0.6 * s], C.light2, 0, 0, 0, rise);
+      for (var j = -1; j <= 1; j++) put(D.box, o, yaw, 0, [-0.03 * s, 0.05 * s, j * 0.14 * s], [(j ? 0.3 : 0.22) * s, 0.012 * s, 0.03 * s], C.dark3, 0, 0, 0, rise);
+      put(D.box, o, yaw, 0, [0.15 * s, 0.05 * s, -0.22 * s], [0.12 * s, 0.014 * s, 0.12 * s], C.yellow, 0.7, 3, 0, rise);
+    }
+  };
+
+  City.prototype.writeHub = function (dt) {
+    var H = this.hub, D = this.D, t = this.t, Y0 = H.Y0, c = H.core;
+    if (this.started) this.flow += dt;
+    var f = this.flow, i, k;
+    var speed = (H.be - H.bs) / HUB.BELT;
+    var gate = [0, 0, 0], pulse = 0;
+    H.dev[0].flash = 0; H.dev[1].flash = 0; H.dev[0].chk = -1; H.dev[1].chk = -1;
+    var ease = function (u) { return u * u * (3 - 2 * u); };
+
+    // inbox icons floating & spinning above their pedestals
+    H.zs.forEach(function (z, ty) {
+      this.drawMsg(ty, [H.inbox, Y0 + 1.3 + Math.sin(t * 1.4 + ty * 2) * 0.08, z], t * 0.5 + ty * 2.1, 1.45, 0.1 + (H.inbox + 9) * 0.05);
+      var u = (t * 0.45 + ty * 0.33) % 1, a = [H.inbox + 0.65, z], b = [H.bs - 0.35, 0];   // cable pulses
+      D.box.add(a[0] + (b[0] - a[0]) * u, Y0, a[1] + (b[1] - a[1]) * u, 0, 0.14, 0.035, 0.14, 0, C.yellow, 2.4, 3, 0);
+    }, this);
+
+    // belt chevrons
+    var bl = H.be - H.bs;
+    for (k = 0; k < 8; k++) {
+      var cx = H.bs + ((k * bl / 8 + Math.max(f, 0) * speed) % bl);
+      D.box.add(cx, H.beltY, 0, 0, 0.1, 0.008, 0.62, 0, C.yellow, 0.4, 3, 0);
+    }
+
+    // messages
+    var first = Math.floor((f - HUB.LIFE) / HUB.INT), last = Math.floor(f / HUB.INT);
+    for (i = Math.max(0, first); i <= last; i++) {
+      var tt = f - i * HUB.INT, type = i % 3, dv = H.dev[i % 2];
+      if (tt < 0 || tt > HUB.LIFE) continue;
+      if (tt < HUB.DROP) {                                  // pop out of the inbox, hop onto the belt
+        var u = tt / HUB.DROP, z0 = H.zs[type];
+        var p = [H.inbox + (H.bs - H.inbox) * u, Y0 + 1.25 + (H.beltY - Y0 - 1.25) * u + Math.sin(Math.PI * u) * 1.1, z0 * (1 - u)];
+        this.drawMsg(type, p, t * 0.5 + type * 2.1 + u * 2, 1.0 * Math.min(1, tt / 0.18), -100);
+        continue;
+      }
+      tt -= HUB.DROP;
+      if (tt < HUB.BELT) {                                  // ride through the three nodes
+        var x = H.bs + speed * tt;
+        this.drawMsg(type, [x, H.beltY + 0.005, 0], 0, 1.0, -100);
+        H.gates.forEach(function (g, gi) { gate[gi] = Math.max(gate[gi], Math.exp(-Math.pow((x - g) / 0.42, 2))); });
+        continue;
+      }
+      tt -= HUB.BELT;
+      if (tt < HUB.LIFT) {                                  // lifted into the AI core
+        var w = ease(tt / HUB.LIFT);
+        var q = [H.be + (c[0] - H.be) * w, H.beltY + (c[1] - H.beltY) * w + Math.sin(Math.PI * w) * 1.2, 0];
+        this.drawMsg(type, q, w * 3, 1.0 * Math.pow(1 - w, 0.6), -100);
+        if (w > 0.75) pulse = Math.max(pulse, (w - 0.75) * 4);
+        continue;
+      }
+      tt -= HUB.LIFT;
+      if (tt < HUB.PROC) { pulse = Math.max(pulse, Math.sin(Math.PI * tt / HUB.PROC) * 0.6 + 0.4); continue; }
+      tt -= HUB.PROC;
+      if (tt < HUB.FLY) {                                   // reply flies out as a paper plane
+        var s = tt / HUB.FLY, P0 = [c[0] + 0.9, c[1] + 0.2, c[2] + (dv.z > 0 ? 0.3 : -0.3)];
+        var n = xf(dv.yaw, dv.tilt, 0, 0, 1), P3 = [dv.screen[0] + n[0] * 0.25, dv.screen[1] + n[1] * 0.25, dv.screen[2] + n[2] * 0.25];
+        var P1 = [P0[0] + 1.4, P0[1] + 2.0, P0[2]], P2 = [P3[0] + n[0] * 2.2 - 0.6, P3[1] + 1.6, P3[2] + n[2] * 2.2];
+        var bz = function (u2) {
+          var a1 = 1 - u2;
+          return [0, 1, 2].map(function (j) { return a1 * a1 * a1 * P0[j] + 3 * a1 * a1 * u2 * P1[j] + 3 * a1 * u2 * u2 * P2[j] + u2 * u2 * u2 * P3[j]; });
+        };
+        var e = ease(s), pos = bz(e), ahead = bz(Math.min(1, e + 0.02)), back = bz(Math.max(0, e - 0.02));
+        var dir = [ahead[0] - back[0], ahead[1] - back[1], ahead[2] - back[2]], or = orient(dir);
+        var sc = 1.0 * Math.min(1, s / 0.12) * (s > 0.88 ? (1 - s) / 0.12 : 1);
+        D.plane.add(pos[0], pos[1], pos[2], or[0], sc, sc, sc, or[1], C.light1, 0.15, 0, 0);
+        for (k = 1; k <= 4; k++) {
+          var tp = bz(Math.max(0, e - k * 0.035)), ts = 0.09 * (1 - k / 5) * Math.min(1, s / 0.12);
+          if (ts > 0.005) D.box.add(tp[0], tp[1] - ts / 2, tp[2], 0, ts, ts, ts, 0, C.yellow, 2.2, 3, 0);
+        }
+        continue;
+      }
+      tt -= HUB.FLY;
+      dv.flash = Math.max(dv.flash, Math.exp(-tt * 2.2)); dv.chk = Math.max(dv.chk, tt);
+    }
+
+    // gates light up as a message passes
+    H.gates.forEach(function (g, gi) {
+      var em = 0.25 + 2.6 * gate[gi], d = 0.1 + (g + 9) * 0.05;
+      D.box.add(g, Y0 + 1.55, 0, 0, 0.3, 0.06, 1.5, 0, C.yellow, em, 3, 0, d);
+      D.box.add(g, H.beltY + 0.002, 0, 0, 0.07, 0.006, 0.95, 0, C.yellow, 0.2 + 2.2 * gate[gi], 3, 0, d);
+      D.box.add(g + 0.22, Y0 + 1.68, 0, 0, 0.03, 0.1, 0.5, 0, C.yellowSoft, 0.4 + 3 * gate[gi], 3, 0, d);
+    });
+
+    // AI core with a neural shell
+    var dc = 0.1 + (c[0] + 9) * 0.05;
+    var cs = 1.45 * (1 + 0.05 * Math.sin(t * 2.1) + 0.16 * pulse);
+    D.sph.add(c[0], c[1] - cs / 2, c[2], t * 0.3, cs, cs, cs, 0, C.yellowSoft, 0.75 + 1.6 * pulse, 3, 0, dc);
+    var NN = 9, rot = t * 0.22;
+    for (k = 0; k < NN; k++) {
+      var yy = 1 - (k + 0.5) / NN * 2, rr = Math.sqrt(1 - yy * yy), th = k * 2.39996 + rot;
+      var R2 = 2.05 + 0.1 * Math.sin(t * 1.3 + k);
+      var nd = [Math.cos(th) * rr, yy * 0.8, Math.sin(th) * rr];
+      var np = [c[0] + nd[0] * R2, c[1] + nd[1] * R2, c[2] + nd[2] * R2];
+      var cp = [c[0] + nd[0] * 0.8, c[1] + nd[1] * 0.8, c[2] + nd[2] * 0.8];
+      var bv = [np[0] - cp[0], np[1] - cp[1], np[2] - cp[2]], bo = orient(bv), L = Math.hypot(bv[0], bv[1], bv[2]);
+      D.sph.add(np[0], np[1] - 0.12, np[2], 0, 0.24, 0.24, 0.24, 0, C.light1, 0.35 + pulse * 0.8, 3, 0, dc);
+      D.box.add((np[0] + cp[0]) / 2, (np[1] + cp[1]) / 2, (np[2] + cp[2]) / 2, bo[0], 0.035, 0.035, L, bo[1], C.yellowSoft, 0.7, 3, 0, dc);
+      var pu = (t * 0.7 + k * 0.137) % 1;
+      D.box.add(np[0] + (cp[0] - np[0]) * pu, np[1] + (cp[1] - np[1]) * pu - 0.045, np[2] + (cp[2] - np[2]) * pu, 0, 0.09, 0.09, 0.09, 0, C.yellow, 2.6, 3, 0, dc);
+    }
+
+    // device screens + check marks
+    H.dev.forEach(function (dv) {
+      var em = 0.35 + 1.9 * dv.flash;
+      put(D.box, dv.hinge, dv.yaw, dv.tilt, [0, (dv.body[1] - dv.panel[1]) / 2, 0.012], [dv.panel[0], dv.panel[1], 0.012], C.screen, em, 3, 0, dv.delay);
+      var rows = dv.kind === 'laptop' ? [0.72, 0.56, 0.4, 0.24] : [0.82, 0.68, 0.54, 0.4, 0.26];
+      rows.forEach(function (ry, ri) {
+        var w = dv.panel[0] * (ri % 2 ? 0.55 : 0.78);
+        put(D.box, dv.hinge, dv.yaw, dv.tilt, [-(dv.panel[0] - w) / 2 + dv.panel[0] * 0.06, dv.body[1] * ry, 0.026], [w, 0.05, 0.006], C.dark3, 0, 0, 0, dv.delay);
+      });
+      if (dv.chk >= 0 && dv.chk < HUB.SHOW) {
+        var u = dv.chk / 0.35, sc = u < 1 ? 1 + 2.70158 * Math.pow(u - 1, 3) + 1.70158 * Math.pow(u - 1, 2) : 1;
+        if (dv.chk > HUB.SHOW - 0.3) sc *= (HUB.SHOW - dv.chk) / 0.3;
+        sc = Math.max(0, sc) * (dv.kind === 'laptop' ? 0.9 : 0.7);
+        D.check.add(dv.screen[0], dv.screen[1] + (dv.kind === 'laptop' ? 1.05 : 1.2), dv.screen[2], this.camAz || 0, sc, sc, sc, 0, C.yellow, 2.2, 3, 0);
+      }
+    }, this);
+  };
+
   /* ---------- frame ---------- */
   City.prototype.resize = function () {
     var r = this.host.getBoundingClientRect(), dpr = Math.max(0.5, Math.min(window.devicePixelRatio || 1, r.width < 820 ? 1.5 : 1.75) * QUALITY.scale);
@@ -697,16 +1017,19 @@
     var az = cfg.az + (motion ? Math.sin(t * 0.11) * 0.2 + this.mx * 0.08 : 0);
     var el = cfg.el + (motion ? Math.sin(t * 0.07) * 0.03 - this.my * 0.03 : 0);
     var fov = cfg.fov * Math.PI / 180;
-    var dist, oy, cityPx = Math.min(this.cssW, 540);
+    var dist, oy, cityPx = Math.min(this.cssW, 540), span = cfg.span || 46, lift = cfg.mLift || 0.42;
     if (narrow) {
       // keep the city a fixed on-screen size and park it at the bottom of the section
-      dist = (46 / cityPx) * this.cssH / (2 * Math.tan(fov / 2));
-      oy = 1 - 2 * (this.cssH - 0.42 * cityPx - cfg.mBottom) / this.cssH;
+      dist = (span / cityPx) * this.cssH / (2 * Math.tan(fov / 2));
+      oy = 1 - 2 * (this.cssH - lift * cityPx - cfg.mBottom) / this.cssH;
     } else {
-      dist = cfg.fit / Math.tan(fov / 2) / Math.min(1, asp * 0.9);
+      dist = cfg.fitW ? Math.max(cfg.fit / Math.tan(fov / 2), cfg.fitW / (Math.tan(fov / 2) * asp))
+                      : cfg.fit / Math.tan(fov / 2) / Math.min(1, asp * 0.9);
       oy = cfg.offY;
     }
-    var tgt = [0, 4 + (motion ? this.scroll * 3 : 0), 0];
+    var ty = cfg.ty == null ? 4 : cfg.ty;
+    var tgt = [0, ty + (motion ? this.scroll * (cfg.kind === 'hub' ? 1.2 : 3) : 0), 0];
+    this.camAz = az;
     var eye = [tgt[0] + Math.cos(el) * Math.sin(az) * dist, tgt[1] + Math.sin(el) * dist, tgt[2] + Math.cos(el) * Math.cos(az) * dist];
     var P = persp(fov, asp, 1, dist * 3);
     var ox = narrow ? 0 : cfg.offX;
@@ -725,15 +1048,20 @@
     var r = this.host.getBoundingClientRect();
     this.scroll = clamp(-r.top / Math.max(1, r.height), 0, 1);
 
-    this.updateTraffic(Math.min(dt, 0.05));
-    this.dyn.count = 0; this.writeCars(); this.writeDrones(); this.dyn.upload();
+    var D = this.D, dk;
+    for (dk in D) D[dk].count = 0;
+    if (this.cfg.kind === 'hub') this.writeHub(dt);
+    else { this.updateTraffic(Math.min(dt, 0.05)); this.writeCars(); this.writeDrones(); }
+    for (dk in D) D[dk].upload();
 
     var L = norm([-0.55, 0.78, 0.38]);
     var ext = this.rad + 6;
     var lv = lookAt([L[0] * 80, L[1] * 80, L[2] * 80], [0, 0, 0], [0, 1, 0]);
     var LVP = mul(ortho(-ext, ext, -ext, ext, 20, 160), lv);
     var VP = this.camera();
-    var all = [this.S.box, this.S.oct, this.S.hex, this.S.cyl, this.S.cone, this.S.leaf, this.S.ring, this.dyn];
+    var all = [], ak;
+    for (ak in this.S) all.push(this.S[ak]);
+    for (ak in D) all.push(D[ak]);
 
     gl.enable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE);
     if (this.useSM) {
