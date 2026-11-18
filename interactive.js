@@ -3,7 +3,7 @@
   var hasGsap = !!window.gsap;
   var reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
   var finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
-  var GOLD = '#C9A54C';
+  var GOLD = '#FF5F1F';
   var $ = function (s, c) { return (c || document).querySelector(s); };
   var $$ = function (s, c) { return Array.prototype.slice.call((c || document).querySelectorAll(s)); };
 
@@ -47,8 +47,8 @@
       el.textContent = text;
       var base = 'max-width: 85%; padding: 10px 14px; font-size: 15px; line-height: 1.5; ';
       el.style.cssText = who === 'user'
-        ? base + 'align-self: flex-end; background: ' + GOLD + '; color: #0E0E0E; border-radius: 12px 12px 2px 12px;'
-        : base + 'align-self: flex-start; background: #1C1C1C; border: 1px solid #2E2E2E; color: #F7F5F0; border-radius: 12px 12px 12px 2px;';
+        ? base + 'align-self: flex-end; background: ' + GOLD + '; color: #1F1E1C; border-radius: 12px 12px 2px 12px;'
+        : base + 'align-self: flex-start; background: #2B2A27; border: 1px solid #403E3A; color: #FBFBFB; border-radius: 12px 12px 12px 2px;';
       chat.appendChild(el);
       // keep the log short
       while (chat.children.length > 6) chat.removeChild(chat.firstElementChild);
@@ -61,7 +61,7 @@
       var el = document.createElement('div');
       el.className = 'bubble bubble-typing';
       el.setAttribute('aria-label', 'Agent is typing');
-      el.style.cssText = 'align-self: flex-start; padding: 12px 14px; background: #1C1C1C; border: 1px solid #2E2E2E; border-radius: 12px 12px 12px 2px; display: flex; gap: 5px;';
+      el.style.cssText = 'align-self: flex-start; padding: 12px 14px; background: #2B2A27; border: 1px solid #403E3A; border-radius: 12px 12px 12px 2px; display: flex; gap: 5px;';
       el.innerHTML = '<span class="tdot"></span><span class="tdot"></span><span class="tdot"></span>';
       chat.appendChild(el);
       chat.scrollTop = chat.scrollHeight;
@@ -70,9 +70,9 @@
 
     function setNode(i, state) {
       var n = nodes[i]; if (!n) return;
-      if (state === 'active') { n.style.borderColor = GOLD; n.style.color = GOLD; n.style.boxShadow = '0 0 0 4px rgba(201,165,76,.12)'; }
-      else if (state === 'done') { n.style.borderColor = 'rgba(201,165,76,.55)'; n.style.color = '#F7F5F0'; n.style.boxShadow = 'none'; }
-      else { n.style.borderColor = '#3A3A3A'; n.style.color = '#9A968C'; n.style.boxShadow = 'none'; }
+      if (state === 'active') { n.style.borderColor = GOLD; n.style.color = GOLD; n.style.boxShadow = '0 0 0 4px rgba(255,95,31,.12)'; }
+      else if (state === 'done') { n.style.borderColor = 'rgba(255,95,31,.55)'; n.style.color = '#FBFBFB'; n.style.boxShadow = 'none'; }
+      else { n.style.borderColor = '#4A4843'; n.style.color = '#A3A09A'; n.style.boxShadow = 'none'; }
     }
 
     function nodeCenter(i) {
