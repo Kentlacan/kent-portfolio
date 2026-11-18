@@ -46,6 +46,27 @@ a:focus-visible,button:focus-visible{outline:2px solid #FF5F1F;outline-offset:4p
 @keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
 .rise{animation:rise .8s cubic-bezier(.2,.7,.2,1) both}
 .d1{animation-delay:.08s}.d2{animation-delay:.18s}.d3{animation-delay:.3s}.d4{animation-delay:.42s}
+.scene-wrap{position:relative;overflow:hidden}
+.city-scene{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.city-poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:right center}
+.city-poster:not([src]),.city-live .city-poster{display:none}
+.city-scrim{position:absolute;inset:0;pointer-events:none}
+.scene-front{position:relative;z-index:1}
+.scene-hero .city-scrim,.scene-case .city-scrim{background:linear-gradient(90deg,#1F1E1C 0%,rgba(31,30,28,.97) 40%,rgba(31,30,28,.82) 50%,rgba(31,30,28,.4) 61%,rgba(31,30,28,0) 73%),linear-gradient(0deg,#1F1E1C 0%,rgba(31,30,28,.75) 16%,rgba(31,30,28,0) 32%)}
+.scene-contact .city-scrim{background:linear-gradient(90deg,#1F1E1C 0%,rgba(31,30,28,.96) 34%,rgba(31,30,28,.6) 48%,rgba(31,30,28,0) 66%),linear-gradient(0deg,#1F1E1C 0%,#1F1E1C 12%,rgba(31,30,28,0) 34%),linear-gradient(180deg,#1F1E1C 0%,rgba(31,30,28,0) 18%)}
+@media (max-width:820px){
+.city-poster{object-position:center bottom}
+.scene-hero .scene-front,.scene-case .scene-front{padding-bottom:380px !important}
+.scene-contact .contact-main{padding-bottom:330px}
+.scene-hero .city-scrim,.scene-case .city-scrim{background:linear-gradient(0deg,#1F1E1C 0,rgba(31,30,28,0) 28px,rgba(31,30,28,0) 300px,rgba(31,30,28,.65) 380px,#1F1E1C 470px)}
+.scene-contact .city-scrim{background:linear-gradient(0deg,#1F1E1C 0,#1F1E1C 120px,rgba(31,30,28,0) 175px,rgba(31,30,28,0) 410px,rgba(31,30,28,.65) 480px,#1F1E1C 560px)}
+}
+@media (min-width:561px) and (max-width:820px){
+.scene-hero .scene-front,.scene-case .scene-front{padding-bottom:470px !important}
+.scene-contact .contact-main{padding-bottom:470px}
+.scene-hero .city-scrim,.scene-case .city-scrim{background:linear-gradient(0deg,#1F1E1C 0,rgba(31,30,28,0) 28px,rgba(31,30,28,0) 390px,rgba(31,30,28,.65) 470px,#1F1E1C 560px)}
+.scene-contact .city-scrim{background:linear-gradient(0deg,#1F1E1C 0,#1F1E1C 120px,rgba(31,30,28,0) 175px,rgba(31,30,28,0) 540px,rgba(31,30,28,.65) 610px,#1F1E1C 690px)}
+}
 @media (max-width:820px){.nav-links{display:none}.nav-cta{display:none}.menu-btn{display:inline-flex}}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
 .rise{animation:none !important}
@@ -107,7 +128,10 @@ input,textarea{cursor:text !important}
 </div>
 
 <!-- HERO (dark) -->
-<section aria-label="Introduction" style="max-width: 1360px; margin: 0 auto; padding: clamp(72px, 10vw, 140px) clamp(20px, 5vw, 80px) clamp(56px, 7vw, 96px); min-height: 640px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; gap: 64px">
+<div class="scene-wrap scene-hero">
+<div class="city-scene" data-scene="hero" aria-hidden="true"><img class="city-poster" data-src="city-hero.jpg" alt=""></div>
+<div class="city-scrim" aria-hidden="true"></div>
+<section aria-label="Introduction" class="scene-front" style="max-width: 1360px; margin: 0 auto; padding: clamp(72px, 10vw, 140px) clamp(20px, 5vw, 80px) clamp(56px, 7vw, 96px); min-height: 640px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; gap: 64px">
 <div style="display: flex; flex-direction: column; gap: 32px">
 <p class="rise" style="margin: 0; display: flex; align-items: center; gap: 14px; font-size: 13px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #FF5F1F"><span style="display: inline-block; width: 32px; height: 1px; background: #FF5F1F"></span>Portfolio — 2026</p>
 <p class="rise d1 greeting" style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-size: clamp(28px, 2.8vw, 40px); line-height: 1.2; color: #FBFBFB">Hi, I’m <span style="font-style: italic; color: #FF5F1F">Kent</span>.</p>
@@ -125,6 +149,7 @@ input,textarea{cursor:text !important}
 <span>Based in Medan, Indonesia</span>
 </div>
 </section>
+</div>
 
 <!-- ABOUT (light) -->
 <section id="about" class="on-light" aria-labelledby="about-title" style="background: #FBFBFB; color: #1F1E1C">
@@ -465,9 +490,11 @@ input,textarea{cursor:text !important}
 </section>
 
 <!-- CONTACT (dark) -->
-<section id="contact" aria-labelledby="contact-title" style="background: #1F1E1C">
-<div style="max-width: 1360px; margin: 0 auto; padding: clamp(96px, 12vw, 176px) clamp(20px, 5vw, 80px) clamp(64px, 7vw, 96px); box-sizing: border-box; display: flex; flex-direction: column; gap: clamp(64px, 8vw, 120px)">
-<div style="display: flex; flex-direction: column; gap: 32px">
+<section id="contact" class="scene-wrap scene-contact" aria-labelledby="contact-title" style="background: #1F1E1C">
+<div class="city-scene" data-scene="contact" aria-hidden="true"><img class="city-poster" data-src="city-contact.jpg" alt=""></div>
+<div class="city-scrim" aria-hidden="true"></div>
+<div class="scene-front" style="max-width: 1360px; margin: 0 auto; padding: clamp(96px, 12vw, 176px) clamp(20px, 5vw, 80px) clamp(64px, 7vw, 96px); box-sizing: border-box; display: flex; flex-direction: column; gap: clamp(64px, 8vw, 120px)">
+<div class="contact-main" style="display: flex; flex-direction: column; gap: 32px">
 <p style="margin: 0; font-size: 13px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #FF5F1F">04 — Contact</p>
 <h2 id="contact-title" style="margin: 0; max-width: 16ch; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: clamp(44px, 6.4vw, 100px); line-height: 1.08; letter-spacing: 0; word-spacing: 0.06em; text-wrap: balance">Let’s build something <em style="font-style: italic; color: #FF5F1F">useful</em> together.</h2>
 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px 32px; margin-top: 8px">
@@ -504,6 +531,7 @@ input,textarea{cursor:text !important}
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !menu.hidden) { close(); openBtn.focus(); } });
 })();
 </script>
+<script src="city3d.js"></script>
 <script src="gsap.min.js"></script>
 <script src="ScrollTrigger.min.js"></script>
 <script src="animations.js"></script>
