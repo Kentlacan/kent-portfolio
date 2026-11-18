@@ -50,10 +50,10 @@ a:focus-visible,button:focus-visible{outline:2px solid #FF5F1F;outline-offset:4p
 .city-scene{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .city-poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:right center}
 .city-poster:not([src]),.city-live .city-poster{display:none}
-.city-scrim{position:absolute;inset:0;pointer-events:none}
+.city-scrim{position:absolute;inset:0;pointer-events:none;--cl:max(0px,(100% - 1360px) / 2);--cw:min(100%,1360px)}
 .scene-front{position:relative;z-index:1}
-.scene-hero .city-scrim,.scene-case .city-scrim{background:linear-gradient(90deg,#1F1E1C 0%,rgba(31,30,28,.97) 40%,rgba(31,30,28,.82) 50%,rgba(31,30,28,.4) 61%,rgba(31,30,28,0) 73%),linear-gradient(0deg,#1F1E1C 0%,rgba(31,30,28,.75) 16%,rgba(31,30,28,0) 32%)}
-.scene-contact .city-scrim{background:linear-gradient(90deg,#1F1E1C 0%,rgba(31,30,28,.96) 34%,rgba(31,30,28,.6) 48%,rgba(31,30,28,0) 66%),linear-gradient(0deg,#1F1E1C 0%,#1F1E1C 12%,rgba(31,30,28,0) 34%),linear-gradient(180deg,#1F1E1C 0%,rgba(31,30,28,0) 18%)}
+.scene-hero .city-scrim,.scene-case .city-scrim{background:linear-gradient(90deg,#1F1E1C 0,#1F1E1C calc(var(--cl) + var(--cw) * 0),rgba(31,30,28,.97) calc(var(--cl) + var(--cw) * .40),rgba(31,30,28,.82) calc(var(--cl) + var(--cw) * .50),rgba(31,30,28,.4) calc(var(--cl) + var(--cw) * .61),rgba(31,30,28,0) calc(var(--cl) + var(--cw) * .73)),linear-gradient(0deg,#1F1E1C 0%,rgba(31,30,28,.75) 16%,rgba(31,30,28,0) 32%)}
+.scene-contact .city-scrim{background:linear-gradient(90deg,#1F1E1C 0,#1F1E1C calc(var(--cl) + var(--cw) * 0),rgba(31,30,28,.96) calc(var(--cl) + var(--cw) * .34),rgba(31,30,28,.6) calc(var(--cl) + var(--cw) * .48),rgba(31,30,28,0) calc(var(--cl) + var(--cw) * .66)),linear-gradient(0deg,#1F1E1C 0%,#1F1E1C 12%,rgba(31,30,28,0) 34%),linear-gradient(180deg,#1F1E1C 0%,rgba(31,30,28,0) 18%)}
 @media (max-width:820px){
 .city-poster{object-position:center bottom}
 .scene-hero .scene-front,.scene-case .scene-front{padding-bottom:380px !important}
@@ -135,8 +135,8 @@ input,textarea{cursor:text !important}
 <div style="display: flex; flex-direction: column; gap: 32px">
 <p class="rise" style="margin: 0; display: flex; align-items: center; gap: 14px; font-size: 13px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #FF5F1F"><span style="display: inline-block; width: 32px; height: 1px; background: #FF5F1F"></span>Portfolio — 2026</p>
 <p class="rise d1 greeting" style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-size: clamp(28px, 2.8vw, 40px); line-height: 1.2; color: #FBFBFB">Hi, I’m <span style="font-style: italic; color: #FF5F1F">Kent</span>.</p>
-<h1 class="rise d1" style="margin: 0; max-width: 100%; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: clamp(46px, 7.4vw, 116px); line-height: 1.08; letter-spacing: 0; word-spacing: 0.06em">I build <em style="font-style: italic; color: #FF5F1F">automations</em><br>and AI Agents<br>that just work.</h1>
-<p class="rise d2" style="margin: 0; max-width: 46ch; font-size: clamp(17px, 1.4vw, 20px); line-height: 1.6; color: #A3A09A">I’m a university student studying abroad. I design workflow automations with n8n, Make and Zapier, and build AI agents that take repetitive work off a team’s plate. More gets done, without adding headcount.</p>
+<h1 class="rise d1" style="margin: 0; max-width: 100%; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: clamp(46px, 7.4vw, 116px); line-height: 1.08; letter-spacing: 0; word-spacing: 0.06em">I build <em style="font-style: italic; color: #FF5F1F">automations</em><br>and AI agents<br>built for production.</h1>
+<p class="rise d2" style="margin: 0; max-width: 46ch; font-size: clamp(17px, 1.4vw, 20px); line-height: 1.6; color: #A3A09A">I map how work moves through your business, then design and ship automations and AI agents with n8n, Make and Zapier. Every build is scoped, tested and documented, so your team gets more done without adding headcount.</p>
 <div class="rise d3" style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px; margin-top: 8px">
 <a href="#work" class="btn-gold" style="display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 28px; background: #FF5F1F; color: #1F1E1C; border-radius: 2px; font-size: 15px; font-weight: 600">View selected work
 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7"></path></svg>
@@ -144,8 +144,8 @@ input,textarea{cursor:text !important}
 </div>
 </div>
 <div class="rise d4" style="display: flex; flex-wrap: wrap; gap: 12px 40px; padding-top: 28px; border-top: 1px solid #383632; font-size: 14px; color: #A3A09A">
-<span style="display: inline-flex; align-items: center; gap: 10px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #FF5F1F"></span>Open to freelance automation work</span>
-<span>Studying at I-Shou University</span>
+<span style="display: inline-flex; align-items: center; gap: 10px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #FF5F1F"></span>Available for new projects</span>
+<span>Working remotely with clients worldwide</span>
 <span>Based in Medan, Indonesia</span>
 </div>
 </section>
@@ -159,8 +159,8 @@ input,textarea{cursor:text !important}
 <p style="margin: 0; font-size: 13px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #C2410C">01 — About</p>
 <h2 id="about-title" style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: clamp(38px, 4.4vw, 64px); line-height: 1.08; letter-spacing: 0; word-spacing: 0.04em; text-wrap: balance">Curious by default, <em style="font-style: italic; color: #C2410C">practical</em> by design.</h2>
 <div style="display: flex; flex-direction: column; gap: 16px; max-width: 60ch; padding: clamp(24px, 3vw, 36px); background: #FFFFFF; border: 1px solid #FF5F1F; border-radius: 2px; font-size: 18px; line-height: 1.7; color: #2B2925">
-<p style="margin: 0">I like finding the repetitive parts of a process and turning them into workflows that run on their own. Most of my work connects apps people already use, so the result feels simple even when the logic behind it is not.</p>
-<p style="margin: 0">I also build AI agents with models like Claude, ChatGPT and Gemini. They read messages, look up the right data and reply on their own, connected to the tools a business already uses.</p>
+<p style="margin: 0">Every project starts with the process behind it: where time is lost, which steps repeat and what can safely run on its own. I map the workflow, plan for the edge cases and agree on what success looks like before I build anything.</p>
+<p style="margin: 0">Curiosity keeps me testing new tools and models like Claude, ChatGPT and Gemini, but each one has to earn its place in the stack. What I deliver are automations and AI agents that plug into the tools you already use, behave predictably and stay easy for your team to maintain.</p>
 </div>
 <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 8px">
 <p style="margin: 0; font-size: 13px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #1F1E1C">Toolkit</p>

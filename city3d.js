@@ -359,9 +359,9 @@
 
   /* ---------- scene presets ---------- */
   var PRESETS = {
-    hero: { seed: 11, n: 7, az: 0.66, el: 0.56, fov: 26, fit: 29, offX: 0.6, offY: -0.12, mBottom: 10, win: 1.0, drones: 6 },
-    contact: { kind: 'hub', seed: 29, az: 0.4, el: 0.52, fov: 26, fit: 8.5, fitW: 19.6, offX: 0.46, offY: 0.04, ty: 1.6, span: 22, mLift: 0.42, mBottom: 175, win: 1.0 },
-    case: { seed: 53, n: 7, az: -0.9, el: 0.6, fov: 26, fit: 29, offX: 0.6, offY: 0.04, mBottom: 10, win: 1.1, drones: 5 }
+    hero: { seed: 11, n: 7, az: 0.66, el: 0.56, fov: 26, fit: 29, fitW: 40, cx: 0.85, offY: -0.12, mBottom: 10, win: 1.0, drones: 6 },
+    contact: { kind: 'hub', seed: 29, az: 0.4, el: 0.52, fov: 26, fit: 8.5, fitW: 21, cx: 0.76, offY: 0.04, ty: 1.6, span: 22, mLift: 0.42, mBottom: 175, win: 1.0 },
+    case: { seed: 53, n: 7, az: -0.9, el: 0.6, fov: 26, fit: 29, fitW: 37, cx: 0.82, offY: 0.04, mBottom: 10, win: 1.1, drones: 5 }
   };
 
   /* ---------- city ---------- */
@@ -1013,6 +1013,9 @@
 
   City.prototype.camera = function () {
     var cfg = this.cfg, asp = this.canvas.width / this.canvas.height, narrow = this.cssW < 820;
+    // On desktop the scene is framed against the 1360px content column, not the
+    // whole viewport, so text and model stay together on wide or zoomed-out screens.
+    var colW = Math.min(this.cssW, 1360), colL = (this.cssW - colW) / 2, aspCol = colW / Math.max(1, this.cssH);
     var t = this.t, motion = !REDUCE;
     var az = cfg.az + (motion ? Math.sin(t * 0.11) * 0.2 + this.mx * 0.08 : 0);
     var el = cfg.el + (motion ? Math.sin(t * 0.07) * 0.03 - this.my * 0.03 : 0);
@@ -1023,8 +1026,8 @@
       dist = (span / cityPx) * this.cssH / (2 * Math.tan(fov / 2));
       oy = 1 - 2 * (this.cssH - lift * cityPx - cfg.mBottom) / this.cssH;
     } else {
-      dist = cfg.fitW ? Math.max(cfg.fit / Math.tan(fov / 2), cfg.fitW / (Math.tan(fov / 2) * asp))
-                      : cfg.fit / Math.tan(fov / 2) / Math.min(1, asp * 0.9);
+      dist = cfg.fitW ? Math.max(cfg.fit / Math.tan(fov / 2), cfg.fitW / (Math.tan(fov / 2) * aspCol))
+                      : cfg.fit / Math.tan(fov / 2) / Math.min(1, aspCol * 0.9);
       oy = cfg.offY;
     }
     var ty = cfg.ty == null ? 4 : cfg.ty;
@@ -1032,7 +1035,7 @@
     this.camAz = az;
     var eye = [tgt[0] + Math.cos(el) * Math.sin(az) * dist, tgt[1] + Math.sin(el) * dist, tgt[2] + Math.cos(el) * Math.cos(az) * dist];
     var P = persp(fov, asp, 1, dist * 3);
-    var ox = narrow ? 0 : cfg.offX;
+    var ox = narrow ? 0 : 2 * (colL + cfg.cx * colW) / this.cssW - 1;
     for (var c = 0; c < 4; c++) { P[c * 4] += ox * P[c * 4 + 3]; P[c * 4 + 1] += oy * P[c * 4 + 3]; }
     this.eye = eye;
     return mul(P, lookAt(eye, tgt, [0, 1, 0]));
