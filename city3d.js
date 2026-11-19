@@ -376,7 +376,7 @@
   /* ---------- scene presets ---------- */
   var PRESETS = {
     hero: { seed: 11, n: 7, az: 0.66, el: 0.56, fov: 26, fit: 29, fitW: 40, cx: 0.85, offY: -0.12, mBottom: 10, win: 1.0, drones: 6 },
-    contact: { kind: 'hub', seed: 29, az: 0.4, el: 0.52, fov: 26, fit: 8.5, fitW: 21, cx: 0.76, offY: 0.04, ty: 1.6, span: 22, mLift: 0.42, mBottom: 175, win: 1.0 },
+    contact: { kind: 'hub', seed: 29, az: 0.4, el: 0.52, fov: 26, fit: 8.5, fitW: 24, cx: 0.75, offY: 0.02, ty: 1.6, span: 30, mLift: 0.42, mBottom: 175, win: 1.0 },
     case: { seed: 53, n: 7, az: -0.9, el: 0.6, fov: 26, fit: 29, fitW: 37, cx: 0.82, offY: 0.04, mBottom: 10, win: 1.1, drones: 5 }
   };
 
@@ -826,44 +826,175 @@
     return L;
   }
 
+  function norm2(x, z) { var l = Math.hypot(x, z) || 1; return [x / l, z / l]; }
+  // flat circuit trace along a 2D polyline; u carries on from the cable so pulses flow through
+  function ribbon(g, pts, y, w, prm, u0, sign) {
+    var n = pts.length, s = [0], i, Lft = [], Rgt = [];
+    for (i = 1; i < n; i++) s.push(s[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    for (i = 0; i < n; i++) {
+      var d1 = i > 0 ? norm2(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]) : null;
+      var d2 = i < n - 1 ? norm2(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]) : null;
+      var d = d1 && d2 ? norm2(d1[0] + d2[0], d1[1] + d2[1]) : (d1 || d2), m = 1;
+      if (d1 && d2) m = 1 / Math.max(0.5, d1[0] * d[0] + d1[1] * d[1]);
+      var px = -d[1] * w / 2 * m, pz = d[0] * w / 2 * m;
+      Lft.push([pts[i][0] + px, pts[i][1] + pz]); Rgt.push([pts[i][0] - px, pts[i][1] - pz]);
+    }
+    function v(p, k) { g.p.push(p[0], y, p[1]); g.n.push(0, 1, 0); g.u.push(u0 + sign * s[k], prm.sp, prm.per, prm.ph); }
+    for (i = 0; i < n - 1; i++) { v(Lft[i], i); v(Rgt[i], i); v(Rgt[i + 1], i + 1); v(Lft[i], i); v(Rgt[i + 1], i + 1); v(Lft[i + 1], i + 1); }
+    return s[n - 1];
+  }
+  // point on a rotated rectangle's edge, on the line from its centre toward (tx, tz)
+  function rectEdge(cx, cz, yaw, hw, hd, tx, tz) {
+    var c = Math.cos(yaw), s = Math.sin(yaw), wx = tx - cx, wz = tz - cz;
+    var lx = c * wx - s * wz, lz = s * wx + c * wz;
+    var t = Math.min(hw / Math.max(1e-6, Math.abs(lx)), hd / Math.max(1e-6, Math.abs(lz)));
+    var px = lx * t, pz = lz * t;
+    return [cx + c * px + s * pz, cz - s * px + c * pz];
+  }
+
+  // app nodes around the hub that the cables connect to
+  var NODES = [
+    { k: 'mail', x: -12.8, z: -5.6 }, { k: 'chat', x: -12.5, z: -1.2 }, { k: 'forms', x: -9.5, z: -9.8 },
+    { k: 'db', x: -4.5, z: -12.2 }, { k: 'cloud', x: 1.5, z: -12 }, { k: 'power', x: 5.2, z: -9.8 },
+    { k: 'store', x: 11, z: 5.5 }, { k: 'team', x: 7.2, z: 9.3 }, { k: 'tower', x: 1.2, z: 10.6 }, { k: 'cal', x: -5.2, z: 9.2 }
+  ];
+
+  City.prototype.buildNode = function (nd, R) {
+    var S = this.S, x = nd.x, z = nd.z, d = 0.9 + Math.hypot(x, z) * 0.025, o = [x, 0.3, z], yaw = 0.4;
+    S.cyl.add(x, 0, z, 0, 2.5, 0.3, 2.5, 0, C.dark2, 0, 0, 0, d);
+    nd.delay = d;
+    switch (nd.k) {
+      case 'mail':
+        put(S.box, o, yaw, 0, [0, 0, 0], [1.3, 0.95, 0.95], C.light1, 0, 0, 0, d);
+        put(S.box, o, yaw, 0, [0, 0.62, 0.47], [0.7, 0.07, 0.03], C.dark1, 0, 0, 0, d);
+        put(S.box, o, yaw, 0, [0, 0.95, 0], [1.34, 0.06, 0.99], C.yellow, 0.5, 3, 0, d);
+        break;
+      case 'chat':
+        S.hex.add(x, 0.3, z, 0, 0.14, 2.3, 0.14, 0, C.dark3, 0, 0, 0, d);
+        S.ring.add(x, 1.15, z, 0, 1.3, 0.08, 1.3, 0.25, C.yellowSoft, 0.8, 5, 0, d, 0.9);
+        S.ring.add(x, 1.75, z, 1, 0.9, 0.08, 0.9, -0.25, C.yellowSoft, 0.8, 5, 0, d, -1.2);
+        break;
+      case 'forms':
+        for (var f = 0; f < 4; f++) put(S.box, o, yaw + (f % 2 ? 0.12 : -0.06), 0, [0, f * 0.13, 0], [1.0, 0.11, 1.3], f % 2 ? C.light2 : C.light1, 0, 0, 0, d);
+        break;
+      case 'db':
+        for (var b = 0; b < 3; b++) {
+          S.cyl.add(x, 0.3 + b * 0.55, z, 0, 1.5, 0.48, 1.5, 0, C.light2, 0, 0, 0, d);
+          S.cyl.add(x, 0.3 + b * 0.55 + 0.48, z, 0, 1.53, 0.05, 1.53, 0, C.yellow, 0.9, 3, 0, d);
+        }
+        break;
+      case 'cloud':
+        put(S.box, o, yaw, 0, [0, 0, 0], [1.0, 0.85, 0.8], C.dark1, 0, 1, R(), d);
+        [[0, 1.45, 0, 1.05], [-0.5, 1.25, 0.1, 0.8], [0.52, 1.28, -0.05, 0.85], [0.1, 1.2, 0.42, 0.7]].forEach(function (q) {
+          var p = xf(yaw, 0, q[0], q[1], q[2]);
+          S.sph.add(x + p[0], 0.3 + p[1] - q[3] / 2, z + p[2], 0, q[3], q[3] * 0.85, q[3], 0, C.light1, 0.05, 0, 0, d);
+        });
+        break;
+      case 'power':
+        S.cyl.add(x, 0.3, z, 0, 1.15, 1.55, 1.15, 0, C.dark3, 0, 0, 0, d);
+        S.cyl.add(x, 1.85, z, 0, 0.45, 0.2, 0.45, 0, C.light2, 0, 0, 0, d);
+        for (var l = 0; l < 3; l++) put(S.box, o, yaw, 0, [0, 0.3 + l * 0.33, 0.56], [0.5, 0.2, 0.06], C.yellow, 1.3, 3, 0, d);
+        break;
+      case 'store':
+        put(S.box, o, 0.15, 0, [0, 0, 0], [1.6, 1.0, 1.15], C.light1, 0, 0, 0, d);
+        put(S.box, o, 0.15, 0, [0, 0.62, 0.72], [1.7, 0.07, 0.4], C.yellow, 0.3, 3, 0, d, 0, 0);
+        put(S.box, o, 0.15, 0, [0, 0, 0.58], [0.4, 0.6, 0.03], C.dark2, 0, 0, 0, d);
+        put(S.box, o, 0.15, 0, [0, 1.0, 0], [1.0, 0.3, 0.08], C.dark2, 0, 0, 0, d);
+        break;
+      case 'team':
+        put(S.box, o, 0.35, 0, [0, 0, 0], [0.7, 0.05, 0.45], C.dark3, 0, 0, 0, d);
+        put(S.box, o, 0.35, 0, [0, 0.05, -0.05], [0.12, 0.65, 0.12], C.dark3, 0, 0, 0, d);
+        put(S.box, o, 0.35, 0, [0, 0.6, 0.02], [1.7, 1.05, 0.08], C.dark2, 0, 0, 0, d);
+        put(S.box, o, 0.35, 0, [0, 0.66, 0.065], [1.56, 0.93, 0.01], C.screen, 0.35, 3, 0, d);
+        [0.82, 0.62, 0.42].forEach(function (yy, i) { put(S.box, o, 0.35, 0, [-0.25 + i * 0.05, 0.6 + yy, 0.075], [0.9 - i * 0.2, 0.06, 0.006], C.dark3, 0, 0, 0, d); });
+        break;
+      case 'tower':
+        S.cone.add(x, 0.3, z, 0, 1.0, 3.2, 1.0, 0, C.dark3, 0, 0, 0, d);
+        S.hex.add(x, 3.4, z, 0, 0.06, 0.7, 0.06, 0, C.light2, 0, 0, 0, d);
+        S.box.add(x, 4.1, z, 0, 0.16, 0.16, 0.16, 0, C.yellow, 3.0, 4, R(), d);
+        S.ring.add(x, 2.2, z, 0, 1.5, 0.06, 1.5, 0, C.yellowSoft, 0.7, 5, 0, d, 0.6);
+        S.ring.add(x, 2.9, z, 0, 2.1, 0.06, 2.1, 0, C.yellowSoft, 0.5, 5, 0, d, -0.45);
+        break;
+      case 'cal':
+        put(S.box, o, yaw, 0, [0, 0, 0], [1.35, 0.85, 1.05], C.light1, 0, 0, 0, d);
+        put(S.box, o, yaw, 0, [0, 0.85, 0], [1.37, 0.18, 1.07], C.yellow, 0.4, 3, 0, d);
+        for (var gi = 0; gi < 3; gi++) for (var gj = 0; gj < 3; gj++) put(S.box, o, yaw, 0, [(gi - 1) * 0.34, 0.85, (gj - 1) * 0.26 + 0.06], [0.2, 0.2, 0.16], (gi + gj) % 4 ? C.dark3 : C.yellow, (gi + gj) % 4 ? 0 : 0.6, 0, 0, d);
+        break;
+    }
+  };
+
   City.prototype.buildCables = function (R) {
-    var gl = this.gl, S = this.S, H = this.hub, Y0 = H.Y0, hx = 8.7, hz = 4.6;
-    // [plug x, plug z, outward normal x, z, outgoing?]
-    var plugs = [
-      [-7.5, -hz, 0, -1, 0], [-6.0, -hz, 0, -1, 0], [-4.1, -hz, 0, -1, 1], [-2.2, -hz, 0, -1, 0], [1.0, -hz, 0, -1, 1],
-      [3.2, -hz, 0, -1, 0], [5.5, -hz, 0, -1, 0], [7.6, -hz, 0, -1, 1],
-      [-5.2, hz, 0, 1, 0], [-3.0, hz, 0, 1, 1], [0.8, hz, 0, 1, 1], [4.8, hz, 0, 1, 1],
-      [-hx, -3.4, -1, 0, 0], [-hx, -1.6, -1, 0, 1], [-hx, 0.2, -1, 0, 0], [-hx, 1.9, -1, 0, 0], [-hx, 3.6, -1, 0, 1],
-      [hx, -3.0, 1, 0, 1], [hx, 0.4, 1, 0, 0], [hx, 2.8, 1, 0, 1]
+    var gl = this.gl, S = this.S, H = this.hub, Y0 = H.Y0, hx = 8.7, hz = 4.6, self = this;
+    var core = H.core, ph = H.dev[1], lp = H.dev[0];
+    function inbox(k, zp) {
+      var cz = H.zs[k], e = [-8.15, zp], d = norm2(e[0] - H.inbox, e[1] - cz);
+      return [[-hx, zp], e, [H.inbox + d[0] * 0.8, cz + d[1] * 0.8]];
+    }
+    function devFront(dv, xp) {
+      var e = [xp, 4.15], q = rectEdge(dv.x, dv.z, dv.yaw, 1.42, 1.17, e[0], e[1]);
+      return [[xp, hz], e, q];
+    }
+    function dev(dv, zp) {
+      var e = [8.25, zp], q = rectEdge(dv.x, dv.z, dv.yaw, 1.42, 1.17, e[0], e[1]);
+      return [[hx, zp], e, q];
+    }
+    // node index, plug [x, z, nx, nz], outgoing?, trace from plug to module
+    var C2 = [
+      [2, [-hx, -2.8, -1, 0], 0, inbox(0, -2.8)], [2, [-hx, -1.6, -1, 0], 0, inbox(0, -1.6)],
+      [0, [-hx, -0.4, -1, 0], 0, inbox(1, -0.4)], [0, [-hx, 0.6, -1, 0], 0, inbox(1, 0.6)],
+      [1, [-hx, 1.9, -1, 0], 0, inbox(2, 1.9)], [1, [-hx, 3.4, -1, 0], 0, inbox(2, 3.4)],
+      [3, [-6.5, -hz, 0, -1], 0, [[-6.5, -hz], [-6.5, -4.22], [2.0, -4.22], [2.0, -1.64]]],
+      [3, [-4.5, -hz, 0, -1], 0, [[-4.5, -hz], [-4.5, -4.32], [2.15, -4.32], [2.15, -1.66]]],
+      [4, [0.3, -hz, 0, -1], 0, [[0.3, -hz], [0.3, -3.92]]],
+      [4, [1.4, -hz, 0, -1], 0, [[1.4, -hz], [1.4, -3.92]]],
+      [4, [3.2, -hz, 0, -1], 0, [[3.2, -hz], [3.2, -3.92]]],
+      [5, [5.5, -hz, 0, -1], 0, [[5.5, -hz], [5.5, -4.42], [2.45, -4.42], [2.45, -1.66]]],
+      [5, [7.5, -hz, 0, -1], 0, [[7.5, -hz], [7.5, -4.52], [2.6, -4.52], [2.6, -1.64]]],
+      [6, [hx, -3.0, 1, 0], 1, dev(ph, -3.0)], [6, [hx, -1.6, 1, 0], 1, dev(ph, -1.6)],
+      [7, [5.4, hz, 0, 1], 1, devFront(lp, 5.4)], [7, [7.0, hz, 0, 1], 1, devFront(lp, 7.0)],
+      [8, [1.6, hz, 0, 1], 1, [[1.6, hz], [1.6, 1.51]]], [8, [3.0, hz, 0, 1], 1, [[3.0, hz], [3.0, 1.51]]],
+      [9, [-4.3, hz, 0, 1], 0, [[-4.3, hz], [-4.3, 1.0]]], [9, [-2.9, hz, 0, 1], 0, [[-2.9, hz], [-2.9, 1.0]]]
     ];
-    var dark = { p: [], n: [], u: [] }, light = { p: [], n: [], u: [] }, self = this, laid = [];
+    this.nodes = NODES.map(function (n) { return { k: n.k, x: n.x, z: n.z, cables: [] }; });
+    this.nodes.forEach(function (nd) { self.buildNode(nd, R); });
+    // spread several sockets around the same node
+    var byNode = {};
+    C2.forEach(function (c, i) { (byNode[c[0]] = byNode[c[0]] || []).push(i); });
+
+    var dark = { p: [], n: [], u: [] }, light = { p: [], n: [], u: [] }, tr = { p: [], n: [], u: [] }, laid = [];
     this.cables = [];
-    plugs.forEach(function (pl, ci) {
-      var nx = pl[2], nz = pl[3], tx = -nz, tz = nx;                      // outward normal and edge tangent
-      var turn = (R() - 0.5) * 1.3, dx = nx * Math.cos(turn) - nz * Math.sin(turn), dz = nx * Math.sin(turn) + nz * Math.cos(turn);
-      var far = 22 + R() * 12, r = 0.07 + R() * 0.08, amp = 0.8 + R() * 2.2, fr = 0.18 + R() * 0.22, ph0 = R() * 6.28;
-      var plugY = 0.22;
-      var start = [pl[0] + nx * 0.25, plugY, pl[1] + nz * 0.25];
-      var pts = [start, [pl[0] + nx * 1.1, r + 0.02, pl[1] + nz * 1.1]];
-      [3, 5.5, 8.5, 12, 16, 21, 27, far + 8].forEach(function (d, j) {
-        var w = Math.min(1, d / 9);                                      // bend from the edge normal toward the far direction
-        var ux = nx * (1 - w) + dx * w, uz = nz * (1 - w) + dz * w, ul = Math.hypot(ux, uz); ux /= ul; uz /= ul;
-        var lat = Math.sin(d * fr + ph0) * amp * Math.min(1, d / 5) + (R() - 0.5) * 1.2;
-        var px = pl[0] + ux * d + -uz * lat, pz = pl[1] + uz * d + ux * lat;
-        // never run back under the platform
-        if (Math.abs(px) < hx + 0.6 && Math.abs(pz) < hz + 0.6) { px += nx * 1.5; pz += nz * 1.5; }
-        pts.push([px, r + 0.02 + (j % 2) * 0.012, pz]);
+    C2.forEach(function (c, ci) {
+      var nd = self.nodes[c[0]], pl = c[1], nx = pl[2], nz = pl[3], out = !!c[2];
+      var grp = byNode[c[0]], gi = grp.indexOf(ci), mean = 0, mx = 0, mz = 0;
+      grp.forEach(function (j) { mx += C2[j][1][0]; mz += C2[j][1][1]; });
+      mean = Math.atan2(mz / grp.length - nd.z, mx / grp.length - nd.x);
+      var ang = mean + (gi - (grp.length - 1) / 2) * 0.42;
+      var so = [Math.cos(ang), Math.sin(ang)], sock = [nd.x + so[0] * 1.24, nd.z + so[1] * 1.24];
+      var r = 0.07 + R() * 0.06, plugY = 0.22;
+      var A1 = [pl[0] + nx * 1.1, pl[1] + nz * 1.1], B1 = [sock[0] + so[0] * 0.9, sock[1] + so[1] * 0.9];
+      var pts = [[pl[0] + nx * 0.25, plugY, pl[1] + nz * 0.25], [A1[0], r + 0.02, A1[1]]];
+      var dx = B1[0] - A1[0], dz = B1[1] - A1[1], dl = Math.hypot(dx, dz), px = -dz / dl, pz = dx / dl;
+      var amp = Math.min(1.6, dl * 0.13) + R() * 0.5, sg = R() < 0.5 ? -1 : 1, ph0 = R() * 0.8;
+      [0.25, 0.5, 0.75].forEach(function (t, j) {
+        var lat = sg * amp * Math.sin(Math.PI * t + ph0) + (R() - 0.5) * 0.5;
+        var q = [A1[0] + dx * t + px * lat, A1[1] + dz * t + pz * lat];
+        if (Math.abs(q[0]) < hx + 0.7 && Math.abs(q[1]) < hz + 0.7) { q[0] += nx * 1.6; q[1] += nz * 1.6; }
+        self.nodes.forEach(function (o) {
+          var ox = q[0] - o.x, oz = q[1] - o.z, od = Math.hypot(ox, oz);
+          if (o !== nd && od < 1.9) { q[0] = o.x + ox / od * 1.9; q[1] = o.z + oz / od * 1.9; }
+        });
+        pts.push([q[0], r + 0.02 + (j % 2) * 0.012, q[1]]);
       });
+      pts.push([B1[0], r + 0.02, B1[1]], [sock[0], 0.15, sock[1]]);
       var path = catmull(pts, 14);
-      // where this cable crosses one laid earlier, lift it so it rests on top
       var base = path.map(function (q) { return q[1]; });
       laid.forEach(function (o) {
-        for (var i = 0; i < path.length; i++) {
+        for (var i = 2; i < path.length - 2; i++) {
           var q = path[i], best = 1e9, by = 0;
           for (var j = 0; j < o.path.length - 1; j++) {
             var a = o.path[j], b = o.path[j + 1], ex = b[0] - a[0], ez = b[2] - a[2], ll = ex * ex + ez * ez || 1;
             var tt = clamp(((q[0] - a[0]) * ex + (q[2] - a[2]) * ez) / ll, 0, 1);
-            var cx2 = a[0] + ex * tt - q[0], cz2 = a[2] + ez * tt - q[2], dd = Math.hypot(cx2, cz2);
+            var dd = Math.hypot(a[0] + ex * tt - q[0], a[2] + ez * tt - q[2]);
             if (dd < best) { best = dd; by = a[1] + (b[1] - a[1]) * tt; }
           }
           if (best < 1.2) {
@@ -873,15 +1004,19 @@
         }
       });
       laid.push({ path: path, r: r });
-      var prm = { sp: (2.2 + R() * 2.4), per: 8 + R() * 9, ph: R() };
-      var L = tube(R() < 0.2 ? light : dark, path, r, 7, prm, !!pl[4]);
-      // connector on the platform side + LED
-      var yaw = Math.atan2(nx, nz);
+      var prm = { sp: 1.8 + R() * 1.4, per: 4.5 + R() * 3.5, ph: R() };
+      // path runs plug -> node; incoming pulses must travel toward the plug, so flip u for them
+      var L = tube(R() < 0.2 ? light : dark, path, r, 7, prm, !out);
+      ribbon(tr, c[3], Y0 + 0.008 + ci * 0.0008, 0.07, prm, out ? 0 : L, out ? -1 : 1);
+      var yaw = Math.atan2(nx, nz), syaw = Math.atan2(so[0], so[1]);
       S.box.add(pl[0] + nx * 0.18, plugY - 0.17, pl[1] + nz * 0.18, yaw, 0.46, 0.34, 0.36, 0, C.plug, 0, 0, 0, 0.3);
-      self.cables.push({ x: pl[0] + nx * 0.18, z: pl[1] + nz * 0.18, yaw: yaw, uPlug: pl[4] ? 0 : L, prm: prm, out: !!pl[4] });
-      void tx; void tz; void ci;
+      S.box.add(sock[0] - so[0] * 0.08, 0.02, sock[1] - so[1] * 0.08, syaw, 0.36, 0.26, 0.3, 0, C.plug, 0, 0, 0, nd.delay);
+      var e = c[3][c[3].length - 1];
+      S.box.add(e[0], Y0, e[1], 0, 0.16, 0.012, 0.16, 0, C.dark3, 0, 0, 0, 0.3);
+      var cab = { x: pl[0] + nx * 0.18, z: pl[1] + nz * 0.18, yaw: yaw, uPlug: out ? 0 : L, uNode: out ? L : 0, prm: prm };
+      self.cables.push(cab); nd.cables.push(cab);
     });
-    [[dark, C.cable, 'cableD'], [light, C.cableLight, 'cableL']].forEach(function (g) {
+    [[dark, C.cable, 'cableD'], [light, C.cableLight, 'cableL'], [tr, C.dark3, 'trace']].forEach(function (g) {
       if (!g[0].p.length) return;
       var b = new Batch(gl, g[0], 1, false);
       b.add(0, 0, 0, 0, 1, 1, 1, 0, g[1], 0, 6, 0, -100, 0);
@@ -889,24 +1024,31 @@
     });
   };
 
-  // LED on each plug: flashes when a pulse arrives (same formula as the shader)
+  // LEDs on the plugs and node rings: flash when a pulse passes (same maths as the shader)
   City.prototype.writePlugs = function () {
-    var D = this.D, t = this.t, Y0 = this.hub.Y0;
-    var power = clamp((this.riseT - 1.3) / 1.3, 0, 1);
-    this.cables.forEach(function (c) {
-      var p = c.prm, d = ((((t * p.sp - c.uPlug) / p.per + p.ph) % 1) + 1) % 1 * p.per;
+    var D = this.D, t = this.t, power = clamp((this.riseT - 1.3) / 1.3, 0, 1);
+    function flash(c, u) {
+      var p = c.prm, d = ((((t * p.sp - u) / p.per + p.ph) % 1) + 1) % 1 * p.per;
       var on = ((t * 0.07 + p.ph * 3.7) % 1) >= 0.3 ? 1 : 0;
-      var fl = Math.exp(-d * 2.2) * on * power;
-      D.box.add(c.x, 0.39, c.z, c.yaw, 0.12, 0.04, 0.12, 0, C.yellow, 0.25 + 3.2 * fl, 3, 0, 0.3);
-      void Y0;
+      return Math.exp(-d * 2.2) * on * power;
+    }
+    this.cables.forEach(function (c) {
+      D.box.add(c.x, 0.39, c.z, c.yaw, 0.12, 0.04, 0.12, 0, C.yellow, 0.25 + 3.2 * flash(c, c.uPlug), 3, 0, 0.3);
     });
+    this.nodes.forEach(function (nd) {
+      var f = 0;
+      nd.cables.forEach(function (c) { f = Math.max(f, flash(c, c.uNode)); });
+      D.cyl.add(nd.x, 0.24, nd.z, 0, 2.56, 0.05, 2.56, 0, C.yellow, 0.45 + 2.6 * f, 3, 0, nd.delay);
+      var icon = { mail: 0, chat: 1, forms: 2 }[nd.k];
+      if (icon != null) this.drawMsg(icon, [nd.x, (nd.k === 'chat' ? 2.75 : nd.k === 'mail' ? 1.65 : 1.2) + Math.sin(t * 1.3 + nd.x) * 0.08, nd.z], t * 0.45 + nd.z, 1.25, nd.delay);
+    }, this);
   };
 
   City.prototype.buildHub = function (R) {
     var S = this.S, Y0 = 0.4;
     this.rad = 30; this.flow = -1.4;
     var H = this.hub = {
-      Y0: Y0, inbox: -7.0, zs: [-2.2, 0, 2.2], bs: -5.4, be: -0.4, beltY: Y0 + 0.53,
+      Y0: Y0, inbox: -7.0, zs: [-2.2, 0, 2.2], types: [2, 0, 1], bs: -5.4, be: -0.4, beltY: Y0 + 0.53,
       gates: [-4.3, -2.9, -1.5], core: [2.3, Y0 + 2.75, 0],
       dev: [{ x: 6.3, z: 1.6, yaw: -0.38, kind: 'laptop' }, { x: 6.4, z: -1.8, yaw: -0.55, kind: 'phone' }]
     };
@@ -994,7 +1136,7 @@
 
     // plants on the platform corners
     var self = this;
-    [[-7.9, 3.7], [-3.4, 3.6], [3.7, 3.7], [7.9, -3.7], [-7.9, -3.7]].forEach(function (p) {
+    [[-7.75, 4.15], [-3.4, 3.6], [3.7, 3.7], [7.9, -3.9], [-7.75, -4.15]].forEach(function (p) {
       var d = dl(p[0]) + 0.3;
       S.cyl.add(p[0], Y0, p[1], 0, 0.55, 0.42, 0.55, 0, C.light2, 0, 0, 0, d);
       S.leaf.add(p[0], Y0 + 0.36, p[1], R() * 6, 0.9, 0.95, 0.9, 0, [C.leaf1, C.leaf2, C.leaf3][Math.floor(R() * 3)], 0, 2, R(), d);
@@ -1034,7 +1176,7 @@
 
     // inbox icons floating & spinning above their pedestals
     H.zs.forEach(function (z, ty) {
-      this.drawMsg(ty, [H.inbox, Y0 + 1.3 + Math.sin(t * 1.4 + ty * 2) * 0.08, z], t * 0.5 + ty * 2.1, 1.45, 0.1 + (H.inbox + 9) * 0.05);
+      this.drawMsg(H.types[ty], [H.inbox, Y0 + 1.3 + Math.sin(t * 1.4 + ty * 2) * 0.08, z], t * 0.5 + ty * 2.1, 1.45, 0.1 + (H.inbox + 9) * 0.05);
       var u = (t * 0.45 + ty * 0.33) % 1, a = [H.inbox + 0.65, z], b = [H.bs - 0.35, 0];   // cable pulses
       D.box.add(a[0] + (b[0] - a[0]) * u, Y0, a[1] + (b[1] - a[1]) * u, 0, 0.14, 0.035, 0.14, 0, C.yellow, 2.4, 3, 0);
     }, this);
@@ -1049,12 +1191,12 @@
     // messages
     var first = Math.floor((f - HUB.LIFE) / HUB.INT), last = Math.floor(f / HUB.INT);
     for (i = Math.max(0, first); i <= last; i++) {
-      var tt = f - i * HUB.INT, type = i % 3, dv = H.dev[i % 2];
+      var tt = f - i * HUB.INT, slot = i % 3, type = H.types[slot], dv = H.dev[i % 2];
       if (tt < 0 || tt > HUB.LIFE) continue;
       if (tt < HUB.DROP) {                                  // pop out of the inbox, hop onto the belt
-        var u = tt / HUB.DROP, z0 = H.zs[type];
+        var u = tt / HUB.DROP, z0 = H.zs[slot];
         var p = [H.inbox + (H.bs - H.inbox) * u, Y0 + 1.25 + (H.beltY - Y0 - 1.25) * u + Math.sin(Math.PI * u) * 1.1, z0 * (1 - u)];
-        this.drawMsg(type, p, t * 0.5 + type * 2.1 + u * 2, 1.0 * Math.min(1, tt / 0.18), -100);
+        this.drawMsg(type, p, t * 0.5 + slot * 2.1 + u * 2, 1.0 * Math.min(1, tt / 0.18), -100);
         continue;
       }
       tt -= HUB.DROP;
