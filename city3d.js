@@ -1016,6 +1016,11 @@
       var cab = { x: pl[0] + nx * 0.18, z: pl[1] + nz * 0.18, yaw: yaw, uPlug: out ? 0 : L, uNode: out ? L : 0, prm: prm };
       self.cables.push(cab); nd.cables.push(cab);
     });
+    var pts = [[-hx, 0, -hz], [hx, 0, -hz], [-hx, 0, hz], [hx, 0, hz], [core[0], 5.6, 0], [core[0] - 2.3, 3.2, 0], [core[0] + 2.3, 3.2, 0]];
+    this.nodes.forEach(function (nd) {
+      pts.push([nd.x - 1.3, 0, nd.z], [nd.x + 1.3, 0, nd.z], [nd.x, 0, nd.z - 1.3], [nd.x, 0, nd.z + 1.3], [nd.x, nd.k === 'tower' ? 4.3 : 2.9, nd.z]);
+    });
+    this.hubPts = pts;
     [[dark, C.cable, 'cableD'], [light, C.cableLight, 'cableL'], [tr, C.dark3, 'trace']].forEach(function (g) {
       if (!g[0].p.length) return;
       var b = new Batch(gl, g[0], 1, false);
@@ -1291,6 +1296,55 @@
     var w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
     if (this.canvas.width !== w || this.canvas.height !== h) { this.canvas.width = w; this.canvas.height = h; }
     this.cssW = r.width; this.cssH = r.height;
+    if (this.cfg.kind === 'hub') { this.measureAvoid(); this.fitHub(); this.lastFit = this.t; }
+  };
+
+  // Right edge of the contact text (real glyphs, after web fonts load), relative to the scene.
+  City.prototype.measureAvoid = function () {
+    var root = this.host.parentNode && this.host.parentNode.querySelector('.contact-main');
+    this.avoidEl = root; this.avoidPx = null;
+    if (!root) return;
+    var hr = this.host.getBoundingClientRect(), max = -1, w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), n;
+    while ((n = w.nextNode())) {
+      if (!n.textContent.trim()) continue;
+      var rg = document.createRange(); rg.selectNodeContents(n);
+      var rs = rg.getClientRects();
+      for (var i = 0; i < rs.length; i++) if (rs[i].width > 0) max = Math.max(max, rs[i].right);
+    }
+    if (max > 0) this.avoidPx = max - hr.left;
+  };
+  // Place (and if needed shrink) the hub so none of it sits under the text, whatever the font or zoom.
+  City.prototype.fitHub = function () {
+    this.hubFit = null;
+    var cfg = this.cfg;
+    if (cfg.kind !== 'hub' || this.cssW < 820 || !this.hubPts) return;
+    var asp = this.cssW / Math.max(1, this.cssH), fov = cfg.fov * Math.PI / 180, self = this;
+    var colW = Math.min(this.cssW, 1360), colL = (this.cssW - colW) / 2, aspCol = colW / Math.max(1, this.cssH);
+    var dist0 = Math.max(cfg.fit / Math.tan(fov / 2), cfg.fitW / (Math.tan(fov / 2) * aspCol));
+    var tR = this.avoidPx != null ? 2 * (this.avoidPx + 56) / this.cssW - 1 : -1;
+    var right = 1 - 2 * 24 / this.cssW, scale = 1, ext;
+    function extents(dist) {
+      var mn = 1e9, mx = -1e9;
+      [-0.32, 0, 0.32].forEach(function (da) {
+        var az = cfg.az + da, el = cfg.el, ty = cfg.ty;
+        var eye = [Math.cos(el) * Math.sin(az) * dist, ty + Math.sin(el) * dist, Math.cos(el) * Math.cos(az) * dist];
+        var VP = mul(persp(fov, asp, 1, dist * 3), lookAt(eye, [0, ty, 0], [0, 1, 0]));
+        self.hubPts.forEach(function (p) {
+          var x = VP[0] * p[0] + VP[4] * p[1] + VP[8] * p[2] + VP[12], w = VP[3] * p[0] + VP[7] * p[1] + VP[11] * p[2] + VP[15];
+          mn = Math.min(mn, x / w); mx = Math.max(mx, x / w);
+        });
+      });
+      return [mn, mx];
+    }
+    for (var it = 0; it < 4; it++) {
+      ext = extents(dist0 * scale);
+      var room = right - Math.max(tR, -1);
+      if (ext[1] - ext[0] <= room) break;
+      scale *= (ext[1] - ext[0]) / room * 1.03;
+    }
+    var ox = Math.max(2 * (colL + cfg.cx * colW) / this.cssW - 1, tR - ext[0]);
+    if (ext[1] + ox > right) ox = right - ext[1];
+    this.hubFit = { ox: ox, scale: scale };
   };
 
   City.prototype.camera = function () {
@@ -1316,8 +1370,10 @@
     var tgt = [0, ty + (motion ? this.scroll * (cfg.kind === 'hub' ? 1.2 : 3) : 0), 0];
     this.camAz = az;
     var eye = [tgt[0] + Math.cos(el) * Math.sin(az) * dist, tgt[1] + Math.sin(el) * dist, tgt[2] + Math.cos(el) * Math.cos(az) * dist];
-    var P = persp(fov, asp, 1, dist * 3);
     var ox = narrow ? 0 : 2 * (colL + cfg.cx * colW) / this.cssW - 1;
+    if (!narrow && this.hubFit) { dist *= this.hubFit.scale; ox = this.hubFit.ox; }
+    eye = [tgt[0] + Math.cos(el) * Math.sin(az) * dist, tgt[1] + Math.sin(el) * dist, tgt[2] + Math.cos(el) * Math.cos(az) * dist];
+    var P = persp(fov, asp, 1, dist * 3);
     for (var c = 0; c < 4; c++) { P[c * 4] += ox * P[c * 4 + 3]; P[c * 4 + 1] += oy * P[c * 4 + 3]; }
     this.eye = eye;
     return mul(P, lookAt(eye, tgt, [0, 1, 0]));
@@ -1328,6 +1384,10 @@
     var gl = this.gl;
     this.t += dt;
     if (this.started && !REDUCE) this.riseT += dt;
+    if (this.cfg.kind === 'hub' && this.t - (this.lastFit || 0) > 1.5) {
+      var before = this.avoidPx; this.measureAvoid(); this.lastFit = this.t;
+      if (before == null || this.avoidPx == null || Math.abs(before - this.avoidPx) > 4) this.fitHub();
+    }
     this.mx += (this.tmx - this.mx) * Math.min(1, dt * 2.5);
     this.my += (this.tmy - this.my) * Math.min(1, dt * 2.5);
     var r = this.host.getBoundingClientRect();
@@ -1420,8 +1480,10 @@
   sizeAll();
   if ('ResizeObserver' in window) {
     var ro = new ResizeObserver(sizeAll);
-    cities.forEach(function (c) { ro.observe(c.host); });
+    cities.forEach(function (c) { ro.observe(c.host); if (c.avoidEl) ro.observe(c.avoidEl); });
   } else window.addEventListener('resize', sizeAll);
+
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(sizeAll);
 
   if (FINE && !REDUCE) {
     window.addEventListener('pointermove', function (e) {
