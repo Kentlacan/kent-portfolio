@@ -44,7 +44,10 @@
     solar: lin('#2C3036'),
     floor: lin('#1B1A18'),
     belt: lin('#262522'),
-    screen: lin('#FFF1CF')
+    screen: lin('#FFF1CF'),
+    cable: lin('#3E3B37'),
+    cableLight: lin('#BDB9B1'),
+    plug: lin('#55524C')
   };
 
   /* ---------- tiny math ---------- */
@@ -240,11 +243,12 @@
 
   var VS = '#version 300 es\n' + VS_COMMON + [
     '',
+    'layout(location=6) in vec4 aU;',
     'uniform mat4 uVP;uniform mat4 uLVP;',
-    'out vec3 vN;out vec3 vW;out vec3 vO;out vec3 vON;out vec4 vLS;flat out vec4 vCol;flat out vec4 vExt;',
+    'out vec3 vN;out vec3 vW;out vec3 vO;out vec3 vON;out vec4 vLS;out vec4 vU;flat out vec4 vCol;flat out vec4 vExt;',
     'void main(){',
     '  mat3 R;vec3 w=place(R);',
-    '  vN=normalize(R*(aN/iScl.xyz));vW=w;vO=aP*iScl.xyz;vON=aN;vCol=iCol;vExt=iExt;',
+    '  vN=normalize(R*(aN/iScl.xyz));vW=w;vO=aP*iScl.xyz;vON=aN;vCol=iCol;vExt=iExt;vU=aU;',
     '  vLS=uLVP*vec4(w,1.);',
     '  gl_Position=uVP*vec4(w,1.);',
     '}'
@@ -253,7 +257,8 @@
   var FS = [
     '#version 300 es',
     'precision highp float;precision highp sampler2DShadow;',
-    'in vec3 vN;in vec3 vW;in vec3 vO;in vec3 vON;in vec4 vLS;flat in vec4 vCol;flat in vec4 vExt;',
+    'in vec3 vN;in vec3 vW;in vec3 vO;in vec3 vON;in vec4 vLS;in vec4 vU;flat in vec4 vCol;flat in vec4 vExt;',
+    'uniform vec3 uVolt;uniform float uRise;',
     'uniform sampler2DShadow uSM;uniform float uUseSM;',
     'uniform vec3 uL;uniform vec3 uSun;uniform vec3 uSky;uniform vec3 uGnd;uniform vec3 uFog;uniform vec3 uWin;',
     'uniform vec3 uEye;uniform float uFogD;uniform float uRad;uniform float uT;',
@@ -288,6 +293,13 @@
     '  if(ty>2.5&&ty<3.5)em+=base*vCol.a;',
     '  if(ty>3.5&&ty<4.5)em+=base*vCol.a*(0.15+0.85*step(0.72,fract(uT*0.55+vExt.y)));',
     '  if(ty>4.5&&ty<5.5)em+=base*vCol.a;',
+    '  if(ty>5.5&&ty<6.5){',
+    // electricity running along a cable: vU = (distance along cable, speed, spacing, phase)
+    '    float d=fract((uT*vU.y-vU.x)/vU.z+vU.w)*vU.z;',
+    '    float crack=0.55+0.45*h1(vec2(floor(vU.x*9.),floor(uT*24.)));',
+    '    float on=step(0.3,fract(uT*0.07+vU.w*3.7))*smoothstep(1.3,2.6,uRise);',
+    '    em+=uVolt*(exp(-d*1.5)*0.9+exp(-d*9.)*2.2+exp(-d*0.45)*0.1)*crack*on;',
+    '  }',
     '  float d=max(dot(n,uL),0.);',
     '  float sh=d>0.?shade():1.;',
     '  vec3 hemi=mix(uGnd,uSky,n.y*0.5+0.5);',
@@ -329,6 +341,10 @@
     gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
     var nb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, nb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(geo.n), gl.STATIC_DRAW);
     gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+    if (geo.u) {
+      var ub = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, ub); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(geo.u), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(6); gl.vertexAttribPointer(6, 4, gl.FLOAT, false, 0, 0);
+    }
     this.ib = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.ib);
     gl.bufferData(gl.ARRAY_BUFFER, this.data.byteLength, dynamic ? gl.DYNAMIC_DRAW : gl.STATIC_DRAW);
     for (var i = 0; i < 4; i++) {
@@ -766,9 +782,129 @@
   var HUB = { INT: 1.5, DROP: 0.7, BELT: 3.6, LIFT: 0.8, PROC: 0.5, FLY: 2.2, SHOW: 1.3 };
   HUB.LIFE = HUB.DROP + HUB.BELT + HUB.LIFT + HUB.PROC + HUB.FLY + HUB.SHOW;
 
+  /* ---------- power cables around the hub ----------
+   * Irregular cables lying on the floor, plugged into the platform sides.
+   * Pulses of light travel along them (inward = power in, outward = replies out);
+   * each plug's LED flashes when a pulse reaches it.
+   */
+  function catmull(pts, steps) {
+    var out = [];
+    for (var i = 0; i < pts.length - 1; i++) {
+      var p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+      for (var s = 0; s < steps; s++) {
+        var t = s / steps, t2 = t * t, t3 = t2 * t;
+        out.push([0, 1, 2].map(function (k) {
+          return 0.5 * ((2 * p1[k]) + (-p0[k] + p2[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t2 + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t3);
+        }));
+      }
+    }
+    out.push(pts[pts.length - 1].slice());
+    return out;
+  }
+  function tube(g, path, r, sides, prm, reverse) {
+    var n = path.length, len = [0], i, k;
+    for (i = 1; i < n; i++) len.push(len[i - 1] + Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1], path[i][2] - path[i - 1][2]));
+    var L = len[n - 1], rings = [];
+    for (i = 0; i < n; i++) {
+      var a = path[Math.max(0, i - 1)], b = path[Math.min(n - 1, i + 1)];
+      var T = norm([b[0] - a[0], b[1] - a[1], b[2] - a[2]]), B = norm(cross(T, [0, 1, 0])), N = cross(B, T), ring = [];
+      for (k = 0; k < sides; k++) {
+        var ang = k / sides * Math.PI * 2, c = Math.cos(ang), s = Math.sin(ang);
+        var dir = [N[0] * c + B[0] * s, N[1] * c + B[1] * s, N[2] * c + B[2] * s];
+        ring.push({ p: [path[i][0] + dir[0] * r, path[i][1] + dir[1] * r, path[i][2] + dir[2] * r], n: dir });
+      }
+      rings.push(ring);
+    }
+    function vtx(ri, k) {
+      var q = rings[ri][k % sides], u = reverse ? L - len[ri] : len[ri];
+      g.p.push(q.p[0], q.p[1], q.p[2]); g.n.push(q.n[0], q.n[1], q.n[2]); g.u.push(u, prm.sp, prm.per, prm.ph);
+    }
+    for (i = 0; i < n - 1; i++) for (k = 0; k < sides; k++) {
+      vtx(i, k); vtx(i + 1, k); vtx(i + 1, k + 1);
+      vtx(i, k); vtx(i + 1, k + 1); vtx(i, k + 1);
+    }
+    return L;
+  }
+
+  City.prototype.buildCables = function (R) {
+    var gl = this.gl, S = this.S, H = this.hub, Y0 = H.Y0, hx = 8.7, hz = 4.6;
+    // [plug x, plug z, outward normal x, z, outgoing?]
+    var plugs = [
+      [-7.5, -hz, 0, -1, 0], [-6.0, -hz, 0, -1, 0], [-4.1, -hz, 0, -1, 1], [-2.2, -hz, 0, -1, 0], [1.0, -hz, 0, -1, 1],
+      [3.2, -hz, 0, -1, 0], [5.5, -hz, 0, -1, 0], [7.6, -hz, 0, -1, 1],
+      [-5.2, hz, 0, 1, 0], [-3.0, hz, 0, 1, 1], [0.8, hz, 0, 1, 1], [4.8, hz, 0, 1, 1],
+      [-hx, -3.4, -1, 0, 0], [-hx, -1.6, -1, 0, 1], [-hx, 0.2, -1, 0, 0], [-hx, 1.9, -1, 0, 0], [-hx, 3.6, -1, 0, 1],
+      [hx, -3.0, 1, 0, 1], [hx, 0.4, 1, 0, 0], [hx, 2.8, 1, 0, 1]
+    ];
+    var dark = { p: [], n: [], u: [] }, light = { p: [], n: [], u: [] }, self = this, laid = [];
+    this.cables = [];
+    plugs.forEach(function (pl, ci) {
+      var nx = pl[2], nz = pl[3], tx = -nz, tz = nx;                      // outward normal and edge tangent
+      var turn = (R() - 0.5) * 1.3, dx = nx * Math.cos(turn) - nz * Math.sin(turn), dz = nx * Math.sin(turn) + nz * Math.cos(turn);
+      var far = 22 + R() * 12, r = 0.07 + R() * 0.08, amp = 0.8 + R() * 2.2, fr = 0.18 + R() * 0.22, ph0 = R() * 6.28;
+      var plugY = 0.22;
+      var start = [pl[0] + nx * 0.25, plugY, pl[1] + nz * 0.25];
+      var pts = [start, [pl[0] + nx * 1.1, r + 0.02, pl[1] + nz * 1.1]];
+      [3, 5.5, 8.5, 12, 16, 21, 27, far + 8].forEach(function (d, j) {
+        var w = Math.min(1, d / 9);                                      // bend from the edge normal toward the far direction
+        var ux = nx * (1 - w) + dx * w, uz = nz * (1 - w) + dz * w, ul = Math.hypot(ux, uz); ux /= ul; uz /= ul;
+        var lat = Math.sin(d * fr + ph0) * amp * Math.min(1, d / 5) + (R() - 0.5) * 1.2;
+        var px = pl[0] + ux * d + -uz * lat, pz = pl[1] + uz * d + ux * lat;
+        // never run back under the platform
+        if (Math.abs(px) < hx + 0.6 && Math.abs(pz) < hz + 0.6) { px += nx * 1.5; pz += nz * 1.5; }
+        pts.push([px, r + 0.02 + (j % 2) * 0.012, pz]);
+      });
+      var path = catmull(pts, 14);
+      // where this cable crosses one laid earlier, lift it so it rests on top
+      var base = path.map(function (q) { return q[1]; });
+      laid.forEach(function (o) {
+        for (var i = 0; i < path.length; i++) {
+          var q = path[i], best = 1e9, by = 0;
+          for (var j = 0; j < o.path.length - 1; j++) {
+            var a = o.path[j], b = o.path[j + 1], ex = b[0] - a[0], ez = b[2] - a[2], ll = ex * ex + ez * ez || 1;
+            var tt = clamp(((q[0] - a[0]) * ex + (q[2] - a[2]) * ez) / ll, 0, 1);
+            var cx2 = a[0] + ex * tt - q[0], cz2 = a[2] + ez * tt - q[2], dd = Math.hypot(cx2, cz2);
+            if (dd < best) { best = dd; by = a[1] + (b[1] - a[1]) * tt; }
+          }
+          if (best < 1.2) {
+            var w = 1 - clamp((best - 0.15) / 1.05, 0, 1); w = w * w * (3 - 2 * w);
+            q[1] = Math.max(q[1], base[i] + (by + o.r + r + 0.01 - base[i]) * w);
+          }
+        }
+      });
+      laid.push({ path: path, r: r });
+      var prm = { sp: (2.2 + R() * 2.4), per: 8 + R() * 9, ph: R() };
+      var L = tube(R() < 0.2 ? light : dark, path, r, 7, prm, !!pl[4]);
+      // connector on the platform side + LED
+      var yaw = Math.atan2(nx, nz);
+      S.box.add(pl[0] + nx * 0.18, plugY - 0.17, pl[1] + nz * 0.18, yaw, 0.46, 0.34, 0.36, 0, C.plug, 0, 0, 0, 0.3);
+      self.cables.push({ x: pl[0] + nx * 0.18, z: pl[1] + nz * 0.18, yaw: yaw, uPlug: pl[4] ? 0 : L, prm: prm, out: !!pl[4] });
+      void tx; void tz; void ci;
+    });
+    [[dark, C.cable, 'cableD'], [light, C.cableLight, 'cableL']].forEach(function (g) {
+      if (!g[0].p.length) return;
+      var b = new Batch(gl, g[0], 1, false);
+      b.add(0, 0, 0, 0, 1, 1, 1, 0, g[1], 0, 6, 0, -100, 0);
+      S[g[2]] = b;
+    });
+  };
+
+  // LED on each plug: flashes when a pulse arrives (same formula as the shader)
+  City.prototype.writePlugs = function () {
+    var D = this.D, t = this.t, Y0 = this.hub.Y0;
+    var power = clamp((this.riseT - 1.3) / 1.3, 0, 1);
+    this.cables.forEach(function (c) {
+      var p = c.prm, d = ((((t * p.sp - c.uPlug) / p.per + p.ph) % 1) + 1) % 1 * p.per;
+      var on = ((t * 0.07 + p.ph * 3.7) % 1) >= 0.3 ? 1 : 0;
+      var fl = Math.exp(-d * 2.2) * on * power;
+      D.box.add(c.x, 0.39, c.z, c.yaw, 0.12, 0.04, 0.12, 0, C.yellow, 0.25 + 3.2 * fl, 3, 0, 0.3);
+      void Y0;
+    });
+  };
+
   City.prototype.buildHub = function (R) {
     var S = this.S, Y0 = 0.4;
-    this.rad = 19; this.flow = -1.4;
+    this.rad = 30; this.flow = -1.4;
     var H = this.hub = {
       Y0: Y0, inbox: -7.0, zs: [-2.2, 0, 2.2], bs: -5.4, be: -0.4, beltY: Y0 + 0.53,
       gates: [-4.3, -2.9, -1.5], core: [2.3, Y0 + 2.75, 0],
@@ -853,6 +989,8 @@
       dv.screen = [dv.hinge[0] + sc[0], dv.hinge[1] + sc[1], dv.hinge[2] + sc[2]];
       dv.delay = d; dv.flash = 0;
     });
+
+    this.buildCables(R);
 
     // plants on the platform corners
     var self = this;
@@ -985,6 +1123,8 @@
       D.box.add(np[0] + (cp[0] - np[0]) * pu, np[1] + (cp[1] - np[1]) * pu - 0.045, np[2] + (cp[2] - np[2]) * pu, 0, 0.09, 0.09, 0.09, 0, C.yellow, 2.6, 3, 0, dc);
     }
 
+    this.writePlugs();
+
     // device screens + check marks
     H.dev.forEach(function (dv) {
       var em = 0.35 + 1.9 * dv.flash;
@@ -1094,6 +1234,7 @@
     gl.uniform1f(u.uFogD, 1 / (Math.hypot(this.eye[0], this.eye[1], this.eye[2]) * 1.9));
     gl.uniform1f(u.uRad, this.rad);
     gl.uniform1f(u.uUseSM, this.useSM ? 1 : 0);
+    gl.uniform3f(u.uVolt, C.yellow[0] * 1.6, C.yellow[1] * 1.6, C.yellow[2] * 1.6);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.smTex); gl.uniform1i(u.uSM, 0);
     all.forEach(function (b) { b.draw(); });
     gl.bindVertexArray(null);
